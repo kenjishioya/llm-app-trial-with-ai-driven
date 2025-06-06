@@ -1,0 +1,113 @@
+---
+description: 
+globs: infra/terraform/**/*.tf,infra/bicep/**/*.bicep
+alwaysApply: false
+---
+---
+description: >
+  QRAI プロジェクトにおける IaC（Terraform & Bicep）専用ルール。
+  モジュール設計、変数管理、セキュリティスキャン、テストパターンなど、
+  インフラコード全般に関する最小限ガイドラインをまとめています。
+globs:
+  - "infra/terraform/**/*.tf"
+  - "infra/bicep/**/*.bicep"
+---
+
+# 📦 IaC (Terraform & Bicep) パターンルール
+
+> Terraform や Bicep ファイルに自動適用されるルールです。  
+> AI 生成コードや手動編集時に、以下を遵守してください。違反があれば AI は再生成または修正し、最終的に遵守された状態で出力してください。  
+> 詳細な背景や長文ガイドは `@Docs docs/architecture/deployment.md` を参照してください。
+
+## 1. モジュール・ファイル構成
+- **1リソース＝1ファイル**原則  
+  - リソースごとにファイルを分割し、名前は `<resource>_<name>.tf` または `<resource>-<name>.bicep` を推奨。 
+  - 再利用可能モジュールは `infra/terraform/modules/<module_name>/`、`infra/bicep/modules/<module_name>/` 配下に配置し、必ず `main.tf`, `variables.tf`, `outputs.tf`, `README.md`（Bicep は `main.bicep`, `params.json`, `outputs.json`, `README.md`）を含める。 
+
+- **ディレクトリ分割**  
+  - 環境ごとにフォルダを分ける。（例: `infra/terraform/env/dev/`, `infra/terraform/env/prod/`, `infra/bicep/env/dev/`）。  
+  - 共通モジュールはルート `modules/` 下に置き、環境ディレクトリから呼び出す形とする。 
+
+## 2. 変数管理とハードコーディング禁止
+- **ハードコーディング禁止**  
+  - リージョンやプレフィックスなどはすべて変数化し、`variables.tf` または Bicep の `param` で定義する。  
+  - 変数値は `terraform.tfvars` や Bicep の `parameters.json`、環境変数、Key Vault 経由で注入する。 
+
+- **変数定義のベストプラクティス**  
+  - 変数には必ず `description` と `type` を記載し、必要な制約は `validation` ブロック（Terraform）や Bicep の `allowed` で明示する。 
+  - デフォルト値は設定せず、必須項目を漏れなく定義することで誤設定を防止する。  
+
+## 3. リモートバックエンドと State 管理
+- **リモートバックエンド必須**  
+  - Terraform は Azure Blob Storage などのリモートバックエンドを使用し、State ロックと暗号化を有効化する。Bicep は Azure Resource Manager デプロイメントを使い、Centralized テンプレート管理を徹底する。 
+  - `backend.tf` や `main.bicep` 内で `resourceGroupName` を変数化し、環境別に設定する。  
+
+- **Workspace / Deployment スロット**  
+  - Terraform では `terraform workspace` を使い、`dev`, `stg`, `prod` など環境ごとに State を分離する。  
+  - Bicep はデプロイメントスロットや ARM テンプレートパラメータで環境分離を行い、同じコードを複数環境に流用できるようにする。
+
+## 4. コーディングスタイル & フォーマット
+- **Terraform フォーマット**  
+  - `terraform fmt -recursive` を CI で必ず実行し、フォーマットを統一する。
+  - `terraform validate` と `tflint` をパイプラインに組み込み、構文エラーやベストプラクティス違反を検出する。  
+
+- **Bicep フォーマット**  
+  - `bicep build` で検証し、`bicep lint` を使い推奨ルールに従う。  
+  - すべての Bicep ファイルに `@description` を付与して自動ドキュメント生成を可能とする。  
+
+## 5. ネーミングコンベンションとタグ付け
+- **一貫したネーミング**  
+  - リソースには接頭辞として環境名を付与（例: `dev-vnet-main`, `prd-postgres-db`）。  
+  - Terraform リソースブロック名は小文字スネークケース（例: `resource "azurerm_resource_group" "rg_dev"`）。Bicep のリソース名は PascalCase でキャメルケース形式（例: `rgDev`）。 
+
+- **タグ付けポリシー**  
+  - すべてのリソースに `environment`, `owner`, `project` タグを付与し、コスト管理や運用監視が行いやすいようにする。
+
+## 6. セキュリティ & シークレット管理
+- **シークレットは Key Vault / Azure AD Managed Identity で管理**  
+  - Terraform は `azurerm_key_vault_secret` などを使い、パスワードや API キーを直接コードに書かない。  
+  - Bicep は `reference()` 関数で既存 Key Vault シークレットを参照し、平文がソースコードに残らないようにする。
+
+- **IaC スキャンツール**  
+  - `terrascan` や `checkov` を CI に組み込み、S3 バケットのパブリック公開、未暗号化ボリューム、ネットワーク ACL などのセキュリティ違反を検出する。  
+  - Bicep は `bicep build --stdout | bicep ci` や `psrule` でベストプラクティスチェックを行う。
+
+## 7. テスト & CI/CD 統合
+- **ユニットテスト**  
+  - **Terratest**（Go）や **terraform-compliance** で、リソース属性やタグが正しく設定されているかを自動検証する。  
+  - Bicep は `Deployment What-If` と `az cli test` を使い、デプロイ差分を検証し本番環境への影響を確認する。  
+
+- **プラン検証拒否基準**  
+  - `terraform plan` の結果に「破壊的変更」が含まれる場合は CI で自動エラーとし、レビューを停止させる。  
+  - Bicep は `az deployment what-if` を使い、ポリシー違反やロール不足などがあれば事前に検出する。  
+
+- **Lint & フォーマット**  
+  - CI で `terraform fmt`, `terraform validate`, `tflint`, `bicep build`, `bicep lint` を実行し、違反があればエラーを返す。  
+  - すべてのテストジョブは **Fail Fast** とし、エラーが検出され次第パイプラインを停止する。  
+
+## 8. DRY とモジュール設計のバランス
+- **DRY すぎない**  
+  - 過度に汎用モジュールを作りすぎず、**「今必要なものだけを実装」**する。機能が増えたら都度モジュールに切り出す。
+  - モジュール内の条件分岐は最小限にし、複雑化しすぎない。  
+
+- **適切な抽象化**  
+  - 似たリソースが複数ある場合は、**共通属性をまとめたモジュール**を作り、必要な部分だけパラメータを渡す。  
+  - モジュールはできる限り **「1 つの責務」**（例: ネットワーク作成専用、DB作成専用）に絞り、他のモジュールと組み合わせて構築する。  
+
+## 9. ドキュメント & コメント
+- **モジュール README.md**  
+  - モジュール直下に `README.md` を置き、**用途・変数説明・出力例・利用方法**を必ず記述する。  
+  - Bicep モジュールでも同様に `README.md` を配置し、`param` と `output` の定義を明示する。  
+
+- **ファイル冒頭コメント**  
+  - Terraform/Bicep ファイルの冒頭に、ファイルの目的や主要リソースを 3 行程度のコメントで簡潔に記述する。  
+
+## 10. AI生成制御 & 連携
+- **不要リソース自動生成禁止**  
+  - AI には「**必要なリソースのみを生成し、使わないリソースブロックは出力しない**」よう指示する。  
+- **既存コードとのマージ**  
+  - 既存ファイルを上書きせず、新規モジュールやリソースブロックを**別ファイル**として追加するように指示する。  
+- **ルール違反時の再生成**  
+  - ルールに反した部分（例: ハードコーディング、モジュール構造崩壊）があった場合は再生成し、最終的に遵守されたコードを返す。  
+
+---

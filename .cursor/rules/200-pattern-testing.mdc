@@ -1,0 +1,97 @@
+---
+description: 
+globs: /tests/**/*.py,/tests/**/*.ts,**/*.test.tsx,**/*.spec.tsx
+alwaysApply: false
+---
+
+⸻
+
+description: >
+QRAI プロジェクトにおけるテストパターンとカバレッジ目標に関するルール。
+テストコード生成時やテストを更新する際に、最低限満たすべきガイドラインをまとめています。
+globs:
+	•	“/tests/**/*.py”
+	•	“/tests/**/*.ts”
+	•	“**/*.test.tsx”
+	•	“**/*.spec.tsx”
+
+⸻
+
+🧪 テストパターン & カバレッジルール
+
+テスト関連タスクに自動適用されるルールです。AI生成テストコードや手動での追加時に、以下を遵守してください。違反があればAIは再生成または修正し、最終的に遵守された状態で出力してください。
+詳細は @Docs docs/architecture/component_api.md#テスト戦略 および @Docs docs/architecture/component_frontend.md#テスト を参照してください。
+
+1. テストの種類と配置
+	•	ユニットテスト は tests/unit/ ディレクトリに配置し、対象モジュールと同名のファイル名で命名する。例: tests/unit/test_rag_service.py, tests/unit/message_bubble.test.tsx。
+	•	統合テスト は tests/integration/ ディレクトリに配置し、外部依存（DB・AI呼び出しなど）をモックまたはスタブする。例: tests/integration/test_graphql_api.py
+	•	E2Eテスト は tests/e2e/ 配下に配置し、Playwright または別フレームワークでブラウザ操作を含む検証を行う。例: tests/e2e/chat_flow.spec.ts。
+	•	テストファイルは対象フォルダと同レベルに置かず、必ず tests/ 以下にまとめる。
+
+2. Python (Backend) テストルール
+	•	pytest を標準採用: テスト関数名はすべて test_ で始める。クラスを使う場合は Test で始まる命名を推奨。
+	•	テスト用DB: pytest-postgresql を使い、一時的に CREATE TEMP TABLE → 終了時に DROP する。Cosmos PG 本番インスタンスにはアクセスしない。
+	•	モック/スタブ: 外部API呼び出しや OpenAI 呼び出し部分は pytest-mock などで必ずモック化し、実際のクレデンシャルを使わない。
+	•	カバレッジ目標: バックエンドは 80 % 以上 を維持。CI で pytest --maxfail=1 --disable-warnings -q --cov=backend を実行し、結果が閾値を下回る変更は差し戻す。
+	•	テストデータ: フィクスチャは tests/conftest.py にまとめ、必要な seed データやテストクライアントを定義する。
+	•	命名規則: テストモジュール名は test_<module>.py、テスト関数は test_<機能>_<条件> のように具体的に書く。例: test_ask_mutation_returns_citations。
+
+3. TypeScript/Frontend テストルール
+	•	Vitest + React Testing Library をユニットテストに使用する。テストファイル名は *.test.tsx または *.spec.tsx とし、元ファイルと同じディレクトリに配置しない。
+	•	Mock Service Worker (MSW) を導入し、GraphQL や REST 呼び出しは必ず MSW でモックする。実際の API を呼ばないように徹底する。
+	•	E2Eテスト は Playwright を使い、tests/e2e/ に配置する。テストシナリオ例: チャット画面でメッセージ送信 → SSE でストリーミング受信を検証する。
+	•	カバレッジ目標: フロントエンドは 70 % 以上 を維持する。CI で vitest run --coverage を実行し、閾値未満のPRは差し戻す。
+	•	テストユーティリティ: テストごとに共通のヘルパー関数を tests/utils/ に配置し、テストコード内で使い回す。
+
+4. テストパターン & ベストプラクティス
+	•	Arrange-Act-Assert フローを明確に守る。各テストは「準備 → 実行 → 検証」の順で書く。コメントは省略せず、何をチェックしているかを明記する。
+	•	パラメタライズテスト を活用し、複数条件で同じロジックを一度にテストできるようにする。
+	•	テストダブルのスコープ設定: モックやスタブはテスト中のみ有効化し、他のテストに影響を与えないように with 構文やフィクスチャを使ってスコープを制御する。
+	•	テストデータの定義: 固定値をコード中にハードコーディングせず、tests/fixtures/ フォルダに JSON や TS/TS ファイルでまとめる。
+
+5. CI設定 & 自動化
+	•	GitHub Actions では次のようなワークフローを定義する:
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run pytest with coverage
+        run: pytest --maxfail=1 --disable-warnings -q --cov=backend --cov-fail-under=80
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run Vitest with coverage
+        run: pnpm vitest run --coverage --coverageThreshold='{\"global\":{\"branches\":70,\"functions\":70,\"lines\":70,\"statements\":70}}'
+      - name: Run Playwright Tests
+        run: npx playwright test
+
+
+	•	Fail Fast: テストが失敗したら即停止し、他のジョブを走らせない設定にする。
+	•	テスト環境変数: CI では本番環境用変数を読み込まないよう NODE_ENV=test などを設定する。Secret や API Key は必ず GitHub Secrets 経由で渡す。
+
+6. テストメンテナンス & ドキュメント
+	•	テストドキュメント: 新しいテストケース追加時には docs/testing.md（任意ファイル）に概要・カバレッジレポートの見方・テスト実行手順を更新する。
+	•	テストレビュー: すべてのテストコードにはレビューが必要。冗長なテストや不要コードは必ず削除し、CI 緑を維持する。
+	•	テスト名の一貫性: テスト関数・ファイルの命名規則を文書化し、チーム全体で徹底する。
+
+7. AI生成制御
+	•	不要テストの自動生成禁止: AIには「テストファイル内の対象モジュールのみテストを作成し、無関係なテストは生成しない」よう指示する。
+	•	テストの粒度: 単一のアサーションを超えた複雑なテストは分割させ、一つのテストで一機能を検証するよう誘導する。
+	•	ルール違反時の再生成: ルールに反したテストコード（例: 実際の API を呼び出す、カバレッジ未達）の場合は再生成し、最終的に遵守されたコードを出力する。
+
+⸻
