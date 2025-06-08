@@ -69,7 +69,7 @@ resource "azurerm_monitor_action_group" "cost_alert" {
   # メール通知（実際のアドレスを後で設定）
   # email_receiver {
   #   name          = "admin"
-  #   email_address = "admin@example.com"
+  #   email_address = "your-email@domain.com"
   # }
 
   # Webhook通知（Slack等）
