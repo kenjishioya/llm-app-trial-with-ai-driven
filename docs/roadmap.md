@@ -8,7 +8,7 @@
 
 | フェーズ                             | ゴール                                              | 完了判定                                               |
 | -------------------------------- | ------------------------------------------------- | -------------------------------------------------- |
-| **Phase 0** – 基盤セットアップ & CI/CD     | ローカル開発環境 + Azure無料枠インフラ + 自動化パイプライン構築           | `terraform apply` 完了 + GitHub Actions CI緑 + Docker起動OK |
+| **Phase 0** – 基盤セットアップ & CI/CD     | ローカル開発環境 + Azure無料枠インフラ + 自動化パイプライン構築           | `terraform apply` + `az deployment` 完了 + GitHub Actions CI緑 + Docker起動OK |
 | **Phase 1** – API基盤 + DB + RAG      | FastAPI + GraphQL + Cosmos DB + 基本RAG + ユニットテスト | GraphQL ask クエリ成功 + セッション保存確認 + pytest緑           |
 | **Phase 2** – UI + ストリーミング         | Next.js チャット UI + SSE ストリーミング + 統合テスト           | ブラウザ質問→リアルタイム応答表示 + E2E基本テスト緑                    |
 | **Phase 3** – セッション管理 & 履歴        | セッション一覧・復元・削除 + 履歴UI + E2Eテスト拡張              | セッション管理全機能 + 履歴画面 + E2Eテスト緑                     |
@@ -26,27 +26,51 @@
 
 ### Phase 0: 基盤セットアップ & CI/CD
 
-#### 1-0A インフラストラクチャ
-* [ ] **Terraform backend**: Azure Blob Storage + state lock設定
-* [ ] **Azure AI Search F1**: リソース作成、ネットワークACL `0.0.0.0/0` (dev) 開放
-* [ ] **Azure OpenAI gpt-4o-mini**: デプロイメント作成、TPM制限設定
-* [ ] **Cosmos DB for PostgreSQL**: Single node無料枠、テーブル初期化
-* [ ] **Container Apps Environment**: Consumption plan、環境変数管理
-* [ ] **Azure Cost Management Budget**: $5予算 + 80%アラート設定
-* [ ] **Log Analytics Workspace**: OpenTelemetry DCR設定
+#### 1-0A インフラストラクチャ（Terraform）
+* [x] **Terraform backend**: Azure Blob Storage + state lock設定
+* [x] **Cosmos DB for PostgreSQL**: Single node無料枠、テーブル初期化 ✅ **修正完了**
+* [x] **Container Apps Environment**: Consumption plan、環境変数管理 ✅ **修正完了**
+* [x] **Azure Cost Management Budget**: $5予算 + 80%アラート設定 ✅ **修正完了**
+* [x] **Log Analytics Workspace**: OpenTelemetry DCR設定 ✅ **修正完了**
+* [x] **Terraform設定修正**: Azure OpenAI依存除去、LLMプロバイダー対応 ✅ **完了**
 
-#### 1-0B CI/CD パイプライン
-* [ ] **GitHub Actions**: pytest + eslint + terraform validation
+#### 1-0B インフラストラクチャ（Bicep）
+* [x] **Azure AI Search F1**: リソース作成、ネットワークACL設定 ✅ **テスト済み**
+* [x] **Key Vault**: LLMプロバイダーAPIキー安全管理、アクセス制御設定 ✅ **テスト済み**
+* [x] **Static Web Apps**: Next.js フロントエンド用、GitHub連携設定 ✅ **テスト済み**
+
+#### 1-0C LLMプロバイダー設定（Azure OpenAI → OpenRouter/Google AI移行）
+* [x] **LLMプロバイダー設定**: OpenRouter（プライマリ）+ Google AI Studio（セカンダリ）
+* [x] **APIキー管理**: Key Vault統合、セキュア環境変数管理
+* [x] **LangChain設定**: config/llm_providers.yml、プロバイダー抽象化設定
+* [x] **デプロイスクリプト**: scripts/deploy-llm-providers.sh、check/test スクリプト
+
+#### 1-0D CI/CD パイプライン
+* [ ] **GitHub Actions**: pytest + eslint + terraform validation + bicep validation
 * [ ] **Pre-commit hooks**: black, ruff, prettier, detect-secrets
 * [ ] **Docker Compose**: 開発環境統合、ホットリロード設定、ネットワーク設定
 * [ ] **環境変数管理**: .env.sample作成、GitHub Secrets設定
 
 **Phase 0 完了条件**:
 ```bash
-# すべて成功すること
+# Bicepデプロイ成功（LLMプロバイダー対応版）
+az deployment group create --resource-group qrai-rg-dev \
+  --template-file infra/bicep/main.bicep \
+  --parameters @infra/bicep/main.bicepparam \
+  --parameters openRouterApiKey='sk-or-xxx' googleAiApiKey='AIzaSyxxx'
+
+# Terraformデプロイ成功（Bicep出力を使用）
+cd infra/terraform
 terraform apply -auto-approve
+
+# LLMプロバイダー接続確認
+python scripts/check_llm_config.py  # 全プロバイダー緑
+
+# 開発環境起動確認
 docker compose up --build
 curl http://localhost:8000/health  # 200 OK
+
+# CI成功
 git push origin main  # GitHub Actions 緑
 ```
 
@@ -298,7 +322,7 @@ graph TD
     P3 --> P4[Phase 4: Deep Research]
     P4 --> P5[Phase 5: パフォーマンス]
     P5 --> P6[Phase 6: 運用準備]
-    
+
     style P0 fill:#e1f5fe
     style P1 fill:#f3e5f5
     style P2 fill:#e8f5e8

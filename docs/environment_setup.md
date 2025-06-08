@@ -1,420 +1,352 @@
-# 環境設定ガイド – QRAI
+# 環境設定ガイド - QRAI LLMプロバイダー対応
 
-> **目的** — 開発・ステージング・本番環境の設定差分、環境変数管理、Azure リソース命名規則を体系化し、環境間の一貫性とセキュリティを確保する。チーム全体が同じ手順で環境を構築・維持できるよう標準化する。
-
----
-
-## 1. 環境区分と特徴
-
-| 環境            | 目的                | インフラ制約                | データ                   | アクセス制限             |
-| ------------- | ----------------- | --------------------- | --------------------- | ------------------ |
-| **development** | 個人開発・ユニットテスト      | 無料枠のみ、リソース最小構成        | ダミーデータ、テスト用社内文書       | 開発者個人アカウント         |
-| **staging**   | 統合テスト・デモ・QA      | 無料枠 + 一部有料SKU         | 本番類似データ（個人情報マスキング済み） | チームメンバー + QA担当者     |
-| **production** | 本番運用（将来）          | パフォーマンス重視、HA構成、有料SKU | 本番データ                 | 限定管理者 + AAD認証ユーザー |
+> **目的** — OpenRouter、Google AI Studio、Azure OpenAI（オプション）のAPIキー管理と環境変数設定を明確化し、開発・本番環境での安全な認証情報管理を実現する。
 
 ---
 
-## 2. Azure リソース命名規則
+## 1. 概要
 
-### 2-1 命名パターン
+QRAIプロジェクトでは以下のLLMプロバイダーに対応しています：
 
-```
-{service}-{app}-{environment}-{region}-{instance}
-```
-
-**例**:
-- `rg-qrai-dev-eastus-01` (リソースグループ)
-- `st-qrai-dev-eastus-01` (ストレージアカウント)
-- `kv-qrai-prod-eastus-01` (Key Vault)
-
-### 2-2 サービス略称
-
-| サービス                     | 略称    | 例                           |
-| ------------------------ | ----- | --------------------------- |
-| Resource Group           | `rg`  | `rg-qrai-dev-eastus-01`     |
-| Storage Account          | `st`  | `stqraideveastus01` (-)不可   |
-| Key Vault                | `kv`  | `kv-qrai-dev-eastus-01`     |
-| Cosmos DB                | `cosmos` | `cosmos-qrai-dev-eastus-01` |
-| AI Search                | `srch` | `srch-qrai-dev-eastus-01`   |
-| OpenAI                   | `oai` | `oai-qrai-dev-eastus-01`    |
-| Container App            | `ca`  | `ca-qrai-dev-eastus-01`     |
-| Static Web App           | `swa` | `swa-qrai-dev-eastus-01`    |
-| Log Analytics Workspace | `law` | `law-qrai-dev-eastus-01`    |
-
-### 2-3 環境・リージョン略称
-
-| 環境       | 略称     | リージョン     | 略称      |
-| -------- | ------ | --------- | ------- |
-| 開発       | `dev`  | East US   | `eastus` |
-| ステージング | `stg`  | West US 2 | `westus2` |
-| 本番       | `prod` | East US 2 | `eastus2` |
+| プロバイダー | 用途 | 無料枠 | API形式 |
+|------------|------|--------|---------|
+| **OpenRouter** | プライマリ（DeepSeek R1） | ✅ 有 | OpenAI互換 |
+| **Google AI Studio** | フォールバック（Gemini） | ✅ 有 | Google API |
+| **Azure OpenAI** | エンタープライズ | ❌ 無 | Azure API |
 
 ---
 
-## 3. 環境変数管理
+## 2. APIキー取得手順
 
-### 3-1 `.env` ファイル構造
+### 2.1 OpenRouter（推奨プライマリ）
+
+1. **アカウント作成**: [openrouter.ai](https://openrouter.ai) でサインアップ
+2. **APIキー生成**: Settings > API Keys > Create New Key
+3. **無料モデル有効化**: Settings > Privacy で "Model Training: ON" を設定
+4. **キー形式**: `sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+
+#### 無料枠詳細
+- DeepSeek R1 Free: 50 requests/day（デフォルト）
+- $10チャージで 1,000 requests/day に拡張可能
+- レート制限: 20 RPM
+
+### 2.2 Google AI Studio（推奨セカンダリ）
+
+1. **Google Cloud Console**: [aistudio.google.com](https://aistudio.google.com) アクセス
+2. **APIキー生成**: Get API Key > Create API Key in New Project
+3. **キー形式**: `AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`
+
+#### 無料枠詳細
+- Gemini 2.5 Flash: 15 RPM, 1M TPM, 1,500 RPD
+- 地域制限: 一部の国では利用不可
+
+### 2.3 Azure OpenAI（オプション）
+
+1. **Azure Portal**: [portal.azure.com](https://portal.azure.com) でリソース作成
+2. **クォータ申請**: 無料枠では TPM = 0 のため有料プラン必要
+3. **キー取得**: OpenAI Service > Keys and Endpoint
+4. **キー形式**: `xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+
+---
+
+## 3. 環境変数設定
+
+### 3.1 開発環境（.env ファイル）
+
+プロジェクトルートに `.env` ファイルを作成：
 
 ```bash
-# === QRAI 環境設定 ===
-# 環境識別
-ENVIRONMENT=development  # development | staging | production
-APP_NAME=qrai
-VERSION=1.0.0
+# QRAI LLM プロバイダー設定
+# =================================
 
-# === Azure サービス ===
-# OpenAI
-AZURE_OPENAI_API_KEY=your-openai-key
-AZURE_OPENAI_ENDPOINT=https://oai-qrai-dev-eastus-01.openai.azure.com/
-AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini
-AZURE_OPENAI_API_VERSION=2024-06-01
+# OpenRouter（プライマリ）
+OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-# AI Search
-AZURE_SEARCH_ENDPOINT=https://srch-qrai-dev-eastus-01.search.windows.net
-AZURE_SEARCH_KEY=your-search-key
-AZURE_SEARCH_INDEX=qrai-documents
+# Google AI Studio（セカンダリ）
+GOOGLE_AI_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-# Cosmos DB for PostgreSQL
-COSMOS_POSTGRES_HOST=cosmos-qrai-dev-eastus-01.postgres.cosmos.azure.com
-COSMOS_POSTGRES_PORT=5432
-COSMOS_POSTGRES_USER=citus
-COSMOS_POSTGRES_PASSWORD=your-cosmos-password
-COSMOS_POSTGRES_DATABASE=qrai
+# Azure OpenAI（オプション）
+AZURE_OPENAI_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 
-# === アプリケーション設定 ===
-# FastAPI
-FASTAPI_HOST=0.0.0.0
-FASTAPI_PORT=8000
-FASTAPI_DEBUG=true  # development only
-FASTAPI_RELOAD=true  # development only
+# LLM設定
+LLM_PRIMARY_PROVIDER=openrouter
+LLM_FALLBACK_PROVIDERS=google_ai,azure_openai
 
-# RAG パラメータ
-RAG_TOP_K=3
-RAG_TEMPERATURE=0.2
-RAG_MAX_TOKENS=1024
+# Azure AI Search（ベクトル検索用）
+AZURE_SEARCH_SERVICE_NAME=qrai-dev-search
+AZURE_SEARCH_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+AZURE_SEARCH_INDEX_NAME=documents
 
-# Deep Research
-DEEP_RESEARCH_MAX_CYCLES=3
-DEEP_RESEARCH_TIMEOUT=120
+# Key Vault（本番環境）
+AZURE_KEYVAULT_URL=https://qrai-devkvxxxxxxxx.vault.azure.net/
 
-# Rate Limiting
-RATE_LIMIT_ENABLED=true
-RATE_LIMIT_REQUESTS_PER_MINUTE=20
-RATE_LIMIT_BURST=5
-
-# === セキュリティ ===
-# JWT (将来用)
-JWT_SECRET_KEY=your-super-secret-jwt-key
-JWT_ALGORITHM=HS256
-JWT_EXPIRE_MINUTES=1440
-
-# CORS
-CORS_ORIGINS=http://localhost:3000,https://swa-qrai-dev-eastus-01.azurestaticapps.net
-CORS_CREDENTIALS=true
-
-# === 監視・ログ ===
-LOG_LEVEL=DEBUG  # DEBUG | INFO | WARNING | ERROR
-STRUCTURED_LOGGING=true
-AZURE_MONITOR_CONNECTION_STRING=InstrumentationKey=your-app-insights-key
-
-# === 機能フラグ ===
-ENABLE_AUTH=false  # development only
-ENABLE_CACHE=false  # Redis未実装
-ENABLE_TELEMETRY=true
+# デバッグ設定
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=lsv2_pt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-### 3-2 環境別設定差分
+### 3.2 .env.example テンプレート
 
-#### Development 環境
 ```bash
+# QRAI LLM プロバイダー設定テンプレート
+# =====================================
+# このファイルをコピーして .env ファイルを作成し、実際のAPIキーを設定してください
+
+# OpenRouter（プライマリ）- 必須
+OPENROUTER_API_KEY=sk-or-v1-your-openrouter-api-key-here
+
+# Google AI Studio（セカンダリ）- 必須
+GOOGLE_AI_API_KEY=AIzaSy-your-google-ai-api-key-here
+
+# Azure OpenAI（オプション）
+AZURE_OPENAI_API_KEY=your-azure-openai-api-key-here
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+
+# プロバイダー選択
+LLM_PRIMARY_PROVIDER=openrouter
+LLM_FALLBACK_PROVIDERS=google_ai
+
+# Azure AI Search
+AZURE_SEARCH_SERVICE_NAME=your-search-service-name
+AZURE_SEARCH_API_KEY=your-search-api-key
+AZURE_SEARCH_INDEX_NAME=documents
+
+# 開発用設定
 ENVIRONMENT=development
-FASTAPI_DEBUG=true
-FASTAPI_RELOAD=true
-LOG_LEVEL=DEBUG
-ENABLE_AUTH=false
-RATE_LIMIT_REQUESTS_PER_MINUTE=100  # 緩い制限
-
-# Azure無料枠リソース
-AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini
-RAG_TOP_K=3
-```
-
-#### Staging 環境
-```bash
-ENVIRONMENT=staging
-FASTAPI_DEBUG=false
-FASTAPI_RELOAD=false
 LOG_LEVEL=INFO
-ENABLE_AUTH=true
-RATE_LIMIT_REQUESTS_PER_MINUTE=50
-
-# より多くのリソース
-AZURE_OPENAI_DEPLOYMENT=gpt-4o
-RAG_TOP_K=5
 ```
 
-#### Production 環境
-```bash
-ENVIRONMENT=production
-FASTAPI_DEBUG=false
-FASTAPI_RELOAD=false
-LOG_LEVEL=WARNING
-ENABLE_AUTH=true
-RATE_LIMIT_REQUESTS_PER_MINUTE=20
+### 3.3 セキュリティ設定
 
-# 本番グレードリソース
-AZURE_OPENAI_DEPLOYMENT=gpt-4o
-RAG_TOP_K=3
-ENABLE_CACHE=true
+`.gitignore` に以下を追加：
+
+```gitignore
+# 環境設定ファイル
+.env
+.env.local
+.env.development
+.env.production
+
+# APIキー関連
+**/api_keys.json
+**/secrets.yml
 ```
 
 ---
 
-## 4. シークレット管理戦略
+## 4. Azure Key Vault統合（本番環境）
 
-### 4-1 環境別シークレット保管
+### 4.1 Key Vault設定
 
-| 環境       | シークレット保管方法               | アクセス方法                      |
-| -------- | ------------------------ | --------------------------- |
-| **開発**   | `.env` ファイル（個人PC）         | 直接読み込み                      |
-| **ステージング** | Azure Key Vault          | Managed Identity            |
-| **本番**   | Azure Key Vault + 暗号化    | Managed Identity + RBAC    |
-
-### 4-2 Key Vault 設計
+Bicepデプロイ時にAPIキーを安全に保存：
 
 ```bash
-# シークレット命名規則: {app}-{service}-{environment}
-qrai-openai-dev-key          # AZURE_OPENAI_API_KEY
-qrai-search-dev-key          # AZURE_SEARCH_KEY  
-qrai-cosmos-dev-password     # COSMOS_POSTGRES_PASSWORD
-qrai-jwt-dev-secret          # JWT_SECRET_KEY
-
-# 接続文字列
-qrai-cosmos-dev-connstr      # 完全な接続文字列
-qrai-monitor-dev-connstr     # Azure Monitor接続文字列
+# デプロイコマンド例
+az deployment group create \
+  --resource-group qrai-dev-rg \
+  --template-file infra/bicep/main.bicep \
+  --parameters @infra/bicep/main.bicepparam \
+  --parameters \
+    keyVaultAccessObjectId="$(az ad signed-in-user show --query id -o tsv)" \
+    openRouterApiKey="sk-or-v1-xxxxx" \
+    googleAiApiKey="AIzaSyxxxxx"
 ```
 
-### 4-3 Container App での環境変数注入
+### 4.2 Key Vault参照（Python）
 
-```yaml
-# Container App 環境変数設定
-apiVersion: 2022-10-01
-properties:
-  configuration:
-    secrets:
-      - name: openai-key
-        keyVaultUrl: https://kv-qrai-prod-eastus-01.vault.azure.net/secrets/qrai-openai-prod-key
-      - name: search-key  
-        keyVaultUrl: https://kv-qrai-prod-eastus-01.vault.azure.net/secrets/qrai-search-prod-key
-    
-  template:
-    containers:
-      - name: qrai-api
-        env:
-          - name: AZURE_OPENAI_API_KEY
-            secretRef: openai-key
-          - name: AZURE_SEARCH_KEY
-            secretRef: search-key
-          - name: ENVIRONMENT
-            value: production
-```
-
----
-
-## 5. 開発環境セットアップ手順
-
-### 5-1 必須ツール
-
-```bash
-# Node.js 20.x
-node --version  # v20.x.x
-
-# Python 3.12
-python --version  # Python 3.12.x
-
-# Azure CLI 2.60+
-az version
-
-# Docker Desktop
-docker --version
-
-# (Optional) pyenv for Python version management
-pyenv install 3.12.2
-pyenv local 3.12.2
-```
-
-### 5-2 初回セットアップ
-
-```bash
-# 1. リポジトリクローン
-git clone git@github.com:yourname/llm-app-trial-with-ai-driven.git
-cd llm-app-trial-with-ai-driven
-
-# 2. Python環境構築
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r backend/requirements-dev.txt
-
-# 3. Node.js環境構築
-cd frontend
-pnpm install
-cd ..
-
-# 4. 環境変数設定
-cp .env.sample .env
-# .envファイルを編集してAzureのキーを設定
-
-# 5. Azure CLI ログイン
-az login
-az account set --subscription "your-subscription-id"
-
-# 6. ローカル開発サーバー起動
-docker compose up --build
-```
-
-### 5-3 環境変数検証
-
-```bash
-# 環境変数が正しく設定されているか確認
-python -c "
+```python
+from azure.keyvault.secrets import SecretClient
+from azure.identity import DefaultAzureCredential
 import os
-from dotenv import load_dotenv
-load_dotenv()
 
-required_vars = [
-    'AZURE_OPENAI_API_KEY',
-    'AZURE_OPENAI_ENDPOINT', 
-    'AZURE_SEARCH_ENDPOINT',
-    'AZURE_SEARCH_KEY'
-]
+def get_llm_config():
+    """Key VaultからLLMプロバイダー設定を取得"""
 
-for var in required_vars:
-    value = os.getenv(var)
-    if value:
-        print(f'✅ {var}: {value[:10]}...')
-    else:
-        print(f'❌ {var}: Not set')
-"
+    # 開発環境では.envファイルを使用
+    if os.getenv('ENVIRONMENT') == 'development':
+        return {
+            'openrouter_api_key': os.getenv('OPENROUTER_API_KEY'),
+            'google_ai_api_key': os.getenv('GOOGLE_AI_API_KEY'),
+        }
+
+    # 本番環境ではKey Vaultを使用
+    credential = DefaultAzureCredential()
+    secret_client = SecretClient(
+        vault_url=os.getenv('AZURE_KEYVAULT_URL'),
+        credential=credential
+    )
+
+    return {
+        'openrouter_api_key': secret_client.get_secret('openrouter-api-key').value,
+        'google_ai_api_key': secret_client.get_secret('google-ai-api-key').value,
+    }
 ```
 
 ---
 
-## 6. CI/CD パイプライン環境変数
+## 5. 環境別設定
 
-### 6-1 GitHub Actions Secrets
+### 5.1 開発環境（Local）
 
-```yaml
-# .github/workflows/deploy.yml
-env:
-  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-  AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-  
-  # Terraform Backend
-  TF_BACKEND_STORAGE_ACCOUNT: ${{ secrets.TF_BACKEND_STORAGE_ACCOUNT }}
-  TF_BACKEND_ACCESS_KEY: ${{ secrets.TF_BACKEND_ACCESS_KEY }}
-  
-  # アプリケーション設定
-  ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+```bash
+# 必須APIキー
+export OPENROUTER_API_KEY=sk-or-v1-xxxxx
+export GOOGLE_AI_API_KEY=AIzaSyxxxxx
+
+# プロバイダー設定
+export LLM_PRIMARY_PROVIDER=openrouter
+export LLM_FALLBACK_PROVIDERS=google_ai
+
+# デバッグ設定
+export LOG_LEVEL=DEBUG
+export LANGCHAIN_TRACING_V2=true
 ```
 
-### 6-2 環境別ワークフロー
+### 5.2 本番環境（Azure Container Apps）
 
-```yaml
-jobs:
-  deploy-staging:
-    if: github.ref == 'refs/heads/develop'
-    environment: staging
-    steps:
-      - name: Deploy to Staging
-        run: |
-          export ENVIRONMENT=staging
-          terraform workspace select staging
-          terraform apply -auto-approve
-          
-  deploy-production:
-    if: github.ref == 'refs/heads/main'
-    environment: production
-    needs: [tests]
-    steps:
-      - name: Deploy to Production
-        run: |
-          export ENVIRONMENT=production
-          terraform workspace select production
-          terraform apply -auto-approve
+```bash
+# Key Vault参照
+export AZURE_KEYVAULT_URL=https://qrai-devkvxxxxxxxx.vault.azure.net/
+
+# マネージドIDを使用してKey Vaultアクセス
+export AZURE_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+# プロバイダー設定
+export LLM_PRIMARY_PROVIDER=openrouter
+export LLM_FALLBACK_PROVIDERS=google_ai,azure_openai
+
+# 本番設定
+export ENVIRONMENT=production
+export LOG_LEVEL=INFO
+```
+
+---
+
+## 6. 設定検証
+
+### 6.1 設定確認スクリプト
+
+```python
+#!/usr/bin/env python3
+"""
+LLMプロバイダー設定確認スクリプト
+usage: python scripts/check_llm_config.py
+"""
+
+import os
+import asyncio
+from openai import OpenAI
+import google.generativeai as genai
+
+async def check_openrouter():
+    """OpenRouter接続確認"""
+    try:
+        client = OpenAI(
+            api_key=os.getenv('OPENROUTER_API_KEY'),
+            base_url="https://openrouter.ai/api/v1"
+        )
+
+        response = client.chat.completions.create(
+            model="deepseek/deepseek-r1:free",
+            messages=[{"role": "user", "content": "Hello"}],
+            max_tokens=10
+        )
+
+        print("✅ OpenRouter: 接続成功")
+        return True
+    except Exception as e:
+        print(f"❌ OpenRouter: 接続失敗 - {e}")
+        return False
+
+async def check_google_ai():
+    """Google AI Studio接続確認"""
+    try:
+        genai.configure(api_key=os.getenv('GOOGLE_AI_API_KEY'))
+        model = genai.GenerativeModel('gemini-2.5-flash')
+
+        response = model.generate_content("Hello")
+
+        print("✅ Google AI: 接続成功")
+        return True
+    except Exception as e:
+        print(f"❌ Google AI: 接続失敗 - {e}")
+        return False
+
+if __name__ == "__main__":
+    print("🔍 LLMプロバイダー設定確認")
+    print("=" * 30)
+
+    asyncio.run(check_openrouter())
+    asyncio.run(check_google_ai())
+```
+
+### 6.2 必要なPythonパッケージ
+
+```txt
+# requirements.txt（LLMプロバイダー関連）
+openai>=1.52.0
+google-generativeai>=0.8.3
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langchain-google-genai>=2.0.0
+azure-keyvault-secrets>=4.8.0
+azure-identity>=1.19.0
 ```
 
 ---
 
 ## 7. トラブルシューティング
 
-### 7-1 よくある環境設定エラー
+### 7.1 よくあるエラー
 
-| エラー                          | 原因                      | 解決方法                               |
-| ---------------------------- | ----------------------- | ---------------------------------- |
-| `Azure CLI not logged in`   | `az login` 未実行          | `az login` を実行してブラウザで認証           |
-| `Subscription not found`    | サブスクリプションIDが間違っている    | `az account list` で正しいIDを確認        |
-| `OpenAI API key invalid`    | キーが正しく設定されていない         | Azure Portal でキーを再確認、`.env` 更新    |
-| `Container app startup fail` | 環境変数が不足している            | Key Vault の権限とシークレット名を確認        |
-| `CORS error`                | CORS_ORIGINS が間違っている | フロントエンドのURLが正しく設定されているか確認       |
+| エラー | 原因 | 解決方法 |
+|--------|------|----------|
+| `Invalid API key` | APIキーが無効 | キーを再生成、環境変数を確認 |
+| `Rate limit exceeded` | レート制限 | 時間をおいて再試行、有料プランを検討 |
+| `Region not supported` | 地域制限 | VPN使用またはプロキシ経由 |
+| `Quota exceeded` | クォータ上限 | 他のプロバイダーを使用 |
 
-### 7-2 環境差分チェックスクリプト
+### 7.2 デバッグコマンド
 
 ```bash
-#!/bin/bash
-# scripts/check-env-diff.sh
+# 環境変数確認
+env | grep -E "(OPENROUTER|GOOGLE_AI|AZURE)"
 
-echo "🔍 環境設定差分チェック"
+# APIキー接続テスト
+curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"model":"deepseek/deepseek-r1:free","messages":[{"role":"user","content":"test"}],"max_tokens":1}' \
+     https://openrouter.ai/api/v1/chat/completions
 
-ENVS=("development" "staging" "production")
-
-for env in "${ENVS[@]}"; do
-    echo "--- ${env} 環境 ---"
-    
-    # 必須環境変数チェック
-    if [ -f ".env.${env}" ]; then
-        source ".env.${env}"
-        echo "✅ 環境ファイル: .env.${env}"
-        echo "🏷️  ENVIRONMENT: ${ENVIRONMENT}"
-        echo "🔧 DEBUG: ${FASTAPI_DEBUG:-false}"
-        echo "🔐 AUTH: ${ENABLE_AUTH:-false}"
-        echo "⚡ RATE_LIMIT: ${RATE_LIMIT_REQUESTS_PER_MINUTE:-20}"
-    else
-        echo "❌ 環境ファイルが見つかりません: .env.${env}"
-    fi
-    echo ""
-done
+# LangChainトレース確認
+export LANGCHAIN_TRACING_V2=true
+export LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
 ```
 
 ---
 
-## 8. セキュリティ考慮事項
+## 8. セキュリティベストプラクティス
 
-### 8-1 環境変数セキュリティ
+### 8.1 APIキー管理
+- ✅ APIキーは環境変数または Key Vault で管理
+- ✅ `.env` ファイルは `.gitignore` に追加
+- ✅ 定期的なローテーション（3ヶ月ごと）
+- ✅ 本番環境では Azure Managed Identity 使用
 
-- ✅ **本番環境では `.env` ファイルを使用しない**
-- ✅ **シークレットは Azure Key Vault に保管**
-- ✅ **開発環境でも重要なキーはローカルのみ保管**
-- ✅ **`.env*` ファイルは `.gitignore` に追加済み**
-- ❌ **GitHub にシークレットをコミットしない**
-
-### 8-2 アクセス制御
-
-```bash
-# Key Vault アクセスポリシー例
-az keyvault set-policy \
-  --name kv-qrai-prod-eastus-01 \
-  --object-id <container-app-managed-identity> \
-  --secret-permissions get list
-
-# Container App Managed Identity 有効化
-az containerapp identity assign \
-  --name ca-qrai-prod-eastus-01 \
-  --resource-group rg-qrai-prod-eastus-01 \
-  --system-assigned
-```
+### 8.2 アクセス制御
+- ✅ Key Vault アクセス許可は最小権限
+- ✅ IP制限の設定（可能な場合）
+- ✅ APIキー使用状況の監視
+- ✅ 異常なアクセスパターンのアラート設定
 
 ---
 
-*Last updated: 2025-06-03* 
+## 次のステップ
+
+環境設定完了後、以下の確認を行ってください：
+
+1. `python scripts/check_llm_config.py` で接続確認
+2. `python scripts/test_llm_providers.py` で動作テスト
+3. LangChain統合の動作確認
+4. ストリーミング機能のテスト

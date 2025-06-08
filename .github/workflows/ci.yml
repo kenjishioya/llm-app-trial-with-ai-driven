@@ -1,0 +1,125 @@
+name: 🧪 Application CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore: ['infra/**', 'docs/**', '*.md']
+  pull_request:
+    branches: [main]
+    paths-ignore: ['infra/**', 'docs/**', '*.md']
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  # Phase 0: 基盤検証のみ
+  validate-structure:
+    name: 📋 Phase 0 - Project Structure Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate project structure
+        run: |
+          echo "🔍 Phase 0 プロジェクト構造検証"
+
+          # 必須ファイルの存在確認
+          echo "📁 必須ファイル確認:"
+          test -f docker-compose.yml && echo "✅ docker-compose.yml"
+          test -f docker-compose.test.yml && echo "✅ docker-compose.test.yml"
+          test -f .pre-commit-config.yaml && echo "✅ .pre-commit-config.yaml"
+          test -f .secrets.baseline && echo "✅ .secrets.baseline"
+          test -f backend/scripts/init.sql && echo "✅ backend/scripts/init.sql"
+
+          echo "✅ Phase 0 構造検証完了"
+
+  docker-validation:
+    name: 🐳 Docker Environment Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test Docker Compose configuration
+        run: |
+          echo "🐳 Docker Compose設定検証"
+
+          # Compose ファイルの文法チェック
+          docker compose -f docker-compose.yml config > /dev/null
+          echo "✅ docker-compose.yml 文法OK"
+
+          docker compose -f docker-compose.test.yml config > /dev/null
+          echo "✅ docker-compose.test.yml 文法OK"
+
+          echo "✅ Docker設定検証完了"
+
+  security-scan:
+    name: 🛡️ Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install detect-secrets
+        run: |
+          pip install detect-secrets
+
+      - name: Run secrets detection
+        run: |
+          echo "🔍 機密情報スキャン実行"
+
+          # ベースラインファイルの存在確認
+          if [ ! -f .secrets.baseline ]; then
+            echo "❌ .secrets.baseline ファイルが見つかりません"
+            exit 1
+          fi
+
+          # detect-secretsスキャン実行（Pythonモジュールとして）
+          echo "📁 現在のディレクトリ: $(pwd)"
+          echo "📂 ベースラインファイル: $(ls -la .secrets.baseline)"
+
+          python -m detect_secrets scan --baseline .secrets.baseline
+          echo "✅ 機密情報スキャン完了"
+
+      - name: Validate pre-commit config
+        run: |
+          echo "🔍 pre-commit設定検証"
+          pip install pre-commit
+          pre-commit validate-config
+          echo "✅ pre-commit設定検証完了"
+
+  quality-gate:
+    name: 🚪 Quality Gate
+    runs-on: ubuntu-latest
+    needs: [validate-structure, docker-validation, security-scan]
+    if: always()
+    steps:
+      - name: Check all jobs status
+        run: |
+          echo "📊 Phase 0 品質ゲートチェック"
+
+          # 必須ジョブのステータス確認
+          if [[ "${{ needs.validate-structure.result }}" != "success" ]]; then
+            echo "❌ プロジェクト構造検証失敗"
+            exit 1
+          fi
+
+          if [[ "${{ needs.docker-validation.result }}" != "success" ]]; then
+            echo "❌ Docker設定検証失敗"
+            exit 1
+          fi
+
+          if [[ "${{ needs.security-scan.result }}" != "success" ]]; then
+            echo "❌ セキュリティスキャン失敗"
+            exit 1
+          fi
+
+          echo "✅ Phase 0 品質ゲート通過"
+          echo "🎯 Phase 1 開発準備完了"

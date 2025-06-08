@@ -1,0 +1,96 @@
+name: 🚀 Infrastructure CI/CD Pipeline
+
+# Phase 0: Infrastructure ワークフローを一時無効化
+# Phase 1 以降で有効化予定
+on:
+  workflow_dispatch: # 手動実行のみ許可
+  # push:
+  #   branches: [main, develop]
+  #   paths: ['infra/**', 'scripts/**', '.github/workflows/infrastructure.yml']
+  # pull_request:
+  #   branches: [main]
+  #   paths: ['infra/**', 'scripts/**']
+
+env:
+  AZURE_RESOURCE_GROUP: qrai-rg-dev
+  AZURE_LOCATION: japaneast
+
+jobs:
+  # Phase 0: 構造検証のみ
+  validate-infrastructure-structure:
+    name: 📋 Infrastructure Structure Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate infrastructure structure
+        run: |
+          echo "🔍 Phase 0 インフラ構造検証"
+
+          # 必須フォルダ・ファイルの存在確認
+          echo "📁 インフラファイル確認:"
+          test -d infra/bicep && echo "✅ infra/bicep/"
+          test -d infra/terraform && echo "✅ infra/terraform/"
+          test -f infra/bicep/main.bicep && echo "✅ infra/bicep/main.bicep"
+          test -f infra/bicep/main.bicepparam && echo "✅ infra/bicep/main.bicepparam"
+          test -f infra/terraform/main.tf && echo "✅ infra/terraform/main.tf"
+          test -f infra/terraform/variables.tf && echo "✅ infra/terraform/variables.tf"
+
+          echo "✅ Phase 0 インフラ構造検証完了"
+          echo "ℹ️  実際のデプロイはPhase 1以降で実行予定"
+
+  # Phase 0: セキュリティスキャンのみ（Azure認証不要）
+  security-scan:
+    name: 🛡️ Infrastructure Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Infrastructure Security Scan
+        run: |
+          echo "🔍 インフラセキュリティスキャン実行"
+
+          # APIキーパターンチェック（.tfと.bicepファイルのみ）
+          if grep -r --include="*.bicep" --include="*.tf" \
+             'sk-[a-zA-Z0-9]\{20,\}\|AIza[a-zA-Z0-9]\{35\}' \
+             --exclude-dir=.git .; then
+            echo "❌ ハードコードされたAPIキーが検出されました"
+            exit 1
+          fi
+
+          # メールアドレスパターンチェック（より厳密に）
+          if grep -r --include="*.bicep" --include="*.tf" \
+             '[a-zA-Z0-9._%+-]\+@\(example\|test\|domain\)\.\(com\|org\|net\)' \
+             --exclude-dir=.git .; then
+            echo "❌ テスト用メールアドレスが検出されました"
+            exit 1
+          fi
+
+          echo "✅ インフラセキュリティスキャン完了"
+
+  # Phase 0: 品質ゲート
+  quality-gate:
+    name: 🚪 Infrastructure Quality Gate
+    runs-on: ubuntu-latest
+    needs: [validate-infrastructure-structure, security-scan]
+    if: always()
+    steps:
+      - name: Check all jobs status
+        run: |
+          echo "📊 Phase 0 インフラ品質ゲートチェック"
+
+          # 必須ジョブのステータス確認
+          if [[ "${{ needs.validate-infrastructure-structure.result }}" != "success" ]]; then
+            echo "❌ インフラ構造検証失敗"
+            exit 1
+          fi
+
+          if [[ "${{ needs.security-scan.result }}" != "success" ]]; then
+            echo "❌ インフラセキュリティスキャン失敗"
+            exit 1
+          fi
+
+          echo "✅ Phase 0 インフラ品質ゲート通過"
+          echo "🎯 Phase 1 でAzureデプロイ開始予定"
