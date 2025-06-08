@@ -74,7 +74,18 @@ jobs:
       - name: Run secrets detection
         run: |
           echo "🔍 機密情報スキャン実行"
-          detect-secrets scan --baseline .secrets.baseline
+
+          # ベースラインファイルの存在確認
+          if [ ! -f .secrets.baseline ]; then
+            echo "❌ .secrets.baseline ファイルが見つかりません"
+            exit 1
+          fi
+
+          # detect-secretsスキャン実行（Pythonモジュールとして）
+          echo "📁 現在のディレクトリ: $(pwd)"
+          echo "📂 ベースラインファイル: $(ls -la .secrets.baseline)"
+
+          python -m detect_secrets scan --baseline .secrets.baseline
           echo "✅ 機密情報スキャン完了"
 
       - name: Validate pre-commit config
