@@ -11,6 +11,184 @@
 * **GraphQL** エンドポイント: `/graphql` (HTTP POST) / `/graphql/stream` (SSE over HTTP)
 * REST は `/health`, `/metrics` のみ expose。
 
+## LLMプロバイダー抽象化 🆕
+
+### 設計原則
+- **プロバイダー非依存**: 特定のLLMサービスに依存しないインターフェース設計
+- **フォールバック機能**: プライマリプロバイダー障害時の自動切り替え
+- **設定駆動**: 環境変数・設定ファイルによるプロバイダー選択
+
+### アーキテクチャ図
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Client App    │───▶│  LLM Service     │───▶│ Provider Factory│
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                                         │
+                       ┌─────────────────────────────────┼─────────────────────────────────┐
+                       ▼                                 ▼                                 ▼
+              ┌──────────────────┐              ┌──────────────────┐              ┌──────────────────┐
+              │ OpenRouterProvider│              │ GoogleAIProvider │              │AzureOpenAIProvider│
+              └──────────────────┘              └──────────────────┘              └──────────────────┘
+                       │                                 │                                 │
+                       ▼                                 ▼                                 ▼
+              ┌──────────────────┐              ┌──────────────────┐              ┌──────────────────┐
+              │  OpenRouter API  │              │ Google AI Studio │              │  Azure OpenAI    │
+              └──────────────────┘              └──────────────────┘              └──────────────────┘
+```
+
+### インターフェース定義
+```python
+class ILLMProvider(ABC):
+    """LLMプロバイダーの共通インターフェース"""
+
+    @abstractmethod
+    async def chat_completion(
+        self,
+        messages: List[ChatMessage],
+        model: str = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
+        **kwargs
+    ) -> ChatResponse:
+        """チャット完了API"""
+        pass
+
+    @abstractmethod
+    async def chat_completion_stream(
+        self,
+        messages: List[ChatMessage],
+        **kwargs
+    ) -> AsyncGenerator[ChatStreamChunk, None]:
+        """ストリーミングチャット完了API"""
+        pass
+
+    @abstractmethod
+    async def embedding(
+        self,
+        text: str,
+        model: str = None
+    ) -> List[float]:
+        """テキスト埋め込みAPI"""
+        pass
+
+    @property
+    @abstractmethod
+    def provider_name(self) -> str:
+        """プロバイダー名"""
+        pass
+
+    @property
+    @abstractmethod
+    def available_models(self) -> List[str]:
+        """利用可能モデル一覧"""
+        pass
+```
+
+### プロバイダー実装例
+```python
+class OpenRouterProvider(ILLMProvider):
+    def __init__(self, api_key: str, base_url: str = "https://openrouter.ai/api/v1"):
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self._provider_name = "openrouter"
+
+    async def chat_completion(self, messages: List[ChatMessage], **kwargs) -> ChatResponse:
+        response = await self.client.chat.completions.create(
+            model=kwargs.get('model', 'deepseek/deepseek-r1:free'),
+            messages=[msg.model_dump() for msg in messages],
+            **kwargs
+        )
+        return ChatResponse.from_openai_response(response)
+
+    async def chat_completion_stream(self, messages: List[ChatMessage], **kwargs):
+        stream = await self.client.chat.completions.create(
+            model=kwargs.get('model', 'deepseek/deepseek-r1:free'),
+            messages=[msg.model_dump() for msg in messages],
+            stream=True,
+            **kwargs
+        )
+        async for chunk in stream:
+            yield ChatStreamChunk.from_openai_chunk(chunk)
+```
+
+### ファクトリーパターン
+```python
+class LLMProviderFactory:
+    @staticmethod
+    def create_provider(provider_name: str, config: Dict) -> ILLMProvider:
+        providers = {
+            'openrouter': OpenRouterProvider,
+            'google_ai': GoogleAIProvider,
+            'azure_openai': AzureOpenAIProvider,
+        }
+
+        provider_class = providers.get(provider_name)
+        if not provider_class:
+            raise ValueError(f"Unknown provider: {provider_name}")
+
+        return provider_class(**config)
+```
+
+### 設定管理
+```yaml
+# config/llm.yml
+llm:
+  primary_provider: "openrouter"
+  fallback_providers:
+    - "google_ai"
+    - "azure_openai"
+
+  providers:
+    openrouter:
+      api_key: "${OPENROUTER_API_KEY}"
+      base_url: "https://openrouter.ai/api/v1"
+      default_models:
+        chat: "deepseek/deepseek-r1:free"
+        embedding: "text-embedding-ada-002"
+      retry_config:
+        max_retries: 3
+        backoff_factor: 2
+
+    google_ai:
+      api_key: "${GOOGLE_AI_API_KEY}"
+      default_models:
+        chat: "gemini-2.5-flash"
+        embedding: "text-embedding-004"
+
+    azure_openai:
+      api_key: "${AZURE_OPENAI_API_KEY}"
+      endpoint: "${AZURE_OPENAI_ENDPOINT}"
+      api_version: "2024-02-15-preview"
+      default_models:
+        chat: "gpt-4o-mini"
+        embedding: "text-embedding-ada-002"
+```
+
+### エラーハンドリング & フォールバック
+```python
+class LLMService:
+    def __init__(self, config: LLMConfig):
+        self.primary_provider = LLMProviderFactory.create_provider(
+            config.primary_provider,
+            config.providers[config.primary_provider]
+        )
+        self.fallback_providers = [
+            LLMProviderFactory.create_provider(name, config.providers[name])
+            for name in config.fallback_providers
+        ]
+
+    async def chat_completion(self, messages: List[ChatMessage], **kwargs) -> ChatResponse:
+        providers = [self.primary_provider] + self.fallback_providers
+
+        for provider in providers:
+            try:
+                return await provider.chat_completion(messages, **kwargs)
+            except Exception as e:
+                logger.warning(f"Provider {provider.provider_name} failed: {e}")
+                continue
+
+        raise LLMServiceError("All providers failed")
+```
+
 ---
 
 ## 2. フォルダ構成（`backend/`）

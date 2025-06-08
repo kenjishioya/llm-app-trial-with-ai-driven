@@ -1,0 +1,194 @@
+# QRAI LLMプロバイダー設定
+# LangChain & Python統合用設定ファイル
+
+# プロバイダー選択戦略
+strategy:
+  primary_provider: "openrouter"
+  fallback_providers:
+    - "google_ai"
+    - "azure_openai"
+
+  # フォールバック条件
+  retry_config:
+    max_retries: 3
+    backoff_factor: 2
+    timeout_seconds: 30
+
+  # 負荷分散設定
+  load_balancing:
+    enabled: false
+    round_robin: false
+
+# プロバイダー個別設定
+providers:
+  openrouter:
+    enabled: true
+    api_key: "${OPENROUTER_API_KEY}"
+    base_url: "https://openrouter.ai/api/v1"
+
+    # LangChain統合設定
+    langchain_class: "langchain_openai.ChatOpenAI"
+    langchain_config:
+      openai_api_base: "https://openrouter.ai/api/v1"
+      openai_api_key: "${OPENROUTER_API_KEY}"
+      model_name: "deepseek/deepseek-r1:free"
+      temperature: 0.7
+      max_tokens: 4096
+      request_timeout: 30
+
+    # 利用可能モデル
+    models:
+      chat:
+        free: "deepseek/deepseek-r1:free"
+        premium: "openai/gpt-4o-mini"
+        reasoning: "deepseek/deepseek-r1"
+      embedding:
+        default: "text-embedding-ada-002"
+        multilingual: "text-embedding-3-small"
+
+    # コスト設定（参考）
+    pricing:
+      input_cost_per_1k_tokens: 0.0
+      output_cost_per_1k_tokens: 0.0
+      embedding_cost_per_1k_tokens: 0.0001
+
+  google_ai:
+    enabled: true
+    api_key: "${GOOGLE_AI_API_KEY}"
+
+    # LangChain統合設定
+    langchain_class: "langchain_google_genai.ChatGoogleGenerativeAI"
+    langchain_config:
+      google_api_key: "${GOOGLE_AI_API_KEY}"
+      model: "gemini-2.5-flash"
+      temperature: 0.7
+      max_output_tokens: 4096
+      request_timeout: 30
+
+    # 利用可能モデル
+    models:
+      chat:
+        flash: "gemini-2.5-flash"
+        pro: "gemini-2.0-flash-exp"
+        vision: "gemini-2.0-flash-exp"
+      embedding:
+        default: "text-embedding-004"
+        multilingual: "text-multilingual-embedding-002"
+
+    # コスト設定（参考）
+    pricing:
+      input_cost_per_1k_tokens: 0.0
+      output_cost_per_1k_tokens: 0.0
+      embedding_cost_per_1k_tokens: 0.0001
+
+  azure_openai:
+    enabled: false  # オプション：クォータが利用可能な場合のみ
+    api_key: "${AZURE_OPENAI_API_KEY}"
+    endpoint: "${AZURE_OPENAI_ENDPOINT}"
+    api_version: "2024-02-15-preview"
+
+    # LangChain統合設定
+    langchain_class: "langchain_openai.AzureChatOpenAI"
+    langchain_config:
+      azure_endpoint: "${AZURE_OPENAI_ENDPOINT}"
+      api_key: "${AZURE_OPENAI_API_KEY}"
+      api_version: "2024-02-15-preview"
+      azure_deployment: "gpt-4o-mini"
+      temperature: 0.7
+      max_tokens: 4096
+      request_timeout: 30
+
+    # 利用可能モデル
+    models:
+      chat:
+        mini: "gpt-4o-mini"
+        standard: "gpt-4o"
+      embedding:
+        default: "text-embedding-ada-002"
+        large: "text-embedding-3-large"
+
+    # コスト設定（参考）
+    pricing:
+      input_cost_per_1k_tokens: 0.00015
+      output_cost_per_1k_tokens: 0.0006
+      embedding_cost_per_1k_tokens: 0.0001
+
+# 機能別推奨プロバイダー
+recommendations:
+  chat_completion:
+    primary: "openrouter"    # 無料枠 DeepSeek R1
+    reasoning: "openrouter"   # DeepSeek R1 推論特化
+    coding: "google_ai"      # Gemini コーディング強化
+
+  embedding:
+    primary: "google_ai"     # text-embedding-004
+    multilingual: "google_ai" # text-multilingual-embedding-002
+    fallback: "openrouter"   # text-embedding-ada-002
+
+  streaming:
+    primary: "openrouter"    # SSE対応良好
+    fallback: "google_ai"    # Gemini streaming
+
+# 環境別設定
+environments:
+  development:
+    strategy:
+      primary_provider: "openrouter"
+      fallback_providers: ["google_ai"]
+
+    providers:
+      openrouter:
+        models:
+          chat: "deepseek/deepseek-r1:free"
+      google_ai:
+        models:
+          chat: "gemini-2.5-flash"
+
+  production:
+    strategy:
+      primary_provider: "openrouter"
+      fallback_providers: ["google_ai", "azure_openai"]
+
+    providers:
+      openrouter:
+        models:
+          chat: "deepseek/deepseek-r1"  # 有料版使用
+      google_ai:
+        models:
+          chat: "gemini-2.0-flash-exp"
+
+# LangChain統合サンプルコード
+integration_examples:
+  python_langchain: |
+    # OpenRouter with LangChain
+    from langchain_openai import ChatOpenAI
+
+    llm = ChatOpenAI(
+        openai_api_base="https://openrouter.ai/api/v1",
+        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        model_name="deepseek/deepseek-r1:free",
+        temperature=0.7
+    )
+
+    # Google AI with LangChain
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
+    llm = ChatGoogleGenerativeAI(
+        google_api_key=os.getenv("GOOGLE_AI_API_KEY"),
+        model="gemini-2.5-flash",
+        temperature=0.7
+    )
+
+  python_openai_sdk: |
+    # OpenRouter with OpenAI SDK
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key=os.getenv("OPENROUTER_API_KEY"),
+        base_url="https://openrouter.ai/api/v1"
+    )
+
+    response = client.chat.completions.create(
+        model="deepseek/deepseek-r1:free",
+        messages=[{"role": "user", "content": "Hello!"}]
+    )

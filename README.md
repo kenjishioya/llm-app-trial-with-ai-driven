@@ -45,6 +45,19 @@
 
 新規開発者は **[docs/developer_onboarding.md](docs/developer_onboarding.md)** を参照してください。**15分以内**でローカル環境セットアップから初回コントリビュートまで完了できるよう設計されています。
 
+### セキュアなインフラデプロイメント（推奨）
+
+```bash
+# 1. Azureにログイン
+az login
+
+# 2. セキュアデプロイメントスクリプト実行
+./scripts/deploy-dev.sh
+
+# ✅ Key Vaultによる暗号化、リージョン最適化済み
+# ✅ 個人情報なし、GitHub安全
+```
+
 ### 最速セットアップ（5分）
 
 ```bash

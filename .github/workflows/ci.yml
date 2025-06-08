@@ -1,0 +1,265 @@
+name: 🧪 Application CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore: ['infra/**', 'docs/**', '*.md']
+  pull_request:
+    branches: [main]
+    paths-ignore: ['infra/**', 'docs/**', '*.md']
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  test-backend:
+    name: 🐍 Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      - name: Lint with ruff
+        run: |
+          echo "🔍 Ruffによるコード分析"
+          ruff check . --output-format=github || true
+          echo "✅ Ruff分析完了"
+
+      - name: Format check with black
+        run: |
+          echo "🔍 Blackによるフォーマットチェック"
+          black --check --diff .
+          echo "✅ Blackフォーマット確認完了"
+
+      - name: Type check with mypy
+        run: |
+          echo "🔍 mypyによる型チェック"
+          mypy . || true
+          echo "✅ mypy型チェック完了"
+
+      - name: Run pytest
+        run: |
+          echo "🧪 pytestによるユニットテスト実行"
+          pytest --cov=. --cov-report=xml --cov-report=term-missing
+          echo "✅ pytest完了"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+
+  test-frontend:
+    name: ⚛️ Frontend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint with ESLint
+        run: |
+          echo "🔍 ESLintによるコード分析"
+          npm run lint
+          echo "✅ ESLint分析完了"
+
+      - name: Type check with TypeScript
+        run: |
+          echo "🔍 TypeScriptによる型チェック"
+          npm run type-check
+          echo "✅ TypeScript型チェック完了"
+
+      - name: Run Vitest
+        run: |
+          echo "🧪 Vitestによるユニットテスト実行"
+          npm run test:coverage
+          echo "✅ Vitest完了"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./frontend/coverage/coverage-final.json
+          flags: frontend
+          name: frontend-coverage
+
+  e2e-tests:
+    name: 🎭 E2E Tests
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Start services with Docker Compose
+        run: |
+          echo "🐳 Docker Compose環境起動"
+          docker compose -f docker-compose.test.yml up -d --build
+
+          # ヘルスチェック待機
+          echo "⏳ サービス起動待機"
+          timeout 60s bash -c 'until curl -f http://localhost:8000/health; do sleep 2; done'
+          echo "✅ バックエンドサービス起動確認"
+
+      - name: Install Playwright
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Run E2E tests
+        working-directory: ./frontend
+        run: |
+          echo "🎭 Playwrightによる E2E テスト実行"
+          npx playwright test
+          echo "✅ E2E テスト完了"
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 30
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose -f docker-compose.test.yml down -v
+
+  security-scan:
+    name: 🛡️ Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Bandit (Python Security)
+        if: hashFiles('backend/**/*.py') != ''
+        run: |
+          pip install bandit
+          echo "🔍 Banditによるセキュリティスキャン"
+          bandit -r backend/ -f json -o bandit-report.json || true
+          echo "✅ Banditスキャン完了"
+
+      - name: Run npm audit (Node.js Security)
+        if: hashFiles('frontend/package-lock.json') != ''
+        working-directory: ./frontend
+        run: |
+          echo "🔍 npm auditによるセキュリティスキャン"
+          npm audit --audit-level=high
+          echo "✅ npm auditスキャン完了"
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+          retention-days: 30
+
+  build:
+    name: 🏗️ Build & Package
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend, security-scan]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: |
+          echo "🐳 Dockerイメージビルド"
+          docker compose -f docker-compose.yml build
+          echo "✅ Dockerビルド完了"
+
+      - name: Test built images
+        run: |
+          echo "🧪 ビルドイメージテスト"
+          docker compose -f docker-compose.yml up -d
+
+          # ヘルスチェック
+          timeout 60s bash -c 'until curl -f http://localhost:8000/health; do sleep 2; done'
+          echo "✅ イメージテスト完了"
+
+          docker compose -f docker-compose.yml down
+
+  quality-gate:
+    name: 🚪 Quality Gate
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend, e2e-tests, security-scan]
+    if: always()
+    steps:
+      - name: Check all jobs status
+        run: |
+          echo "📊 品質ゲートチェック"
+
+          # 必須ジョブのステータス確認
+          if [[ "${{ needs.test-backend.result }}" != "success" ]]; then
+            echo "❌ バックエンドテスト失敗"
+            exit 1
+          fi
+
+          if [[ "${{ needs.test-frontend.result }}" != "success" ]]; then
+            echo "❌ フロントエンドテスト失敗"
+            exit 1
+          fi
+
+          if [[ "${{ needs.e2e-tests.result }}" != "success" ]]; then
+            echo "❌ E2Eテスト失敗"
+            exit 1
+          fi
+
+          if [[ "${{ needs.security-scan.result }}" != "success" ]]; then
+            echo "⚠️ セキュリティスキャンで問題検出（継続）"
+          fi
+
+          echo "✅ 品質ゲート通過"
