@@ -352,7 +352,8 @@ videos/
 locust-report/
 
 # === セキュリティスキャン関連 ===
-.secrets.baseline
+# .secrets.baseline は CI/CD で必要なため Git 管理に含める
+# .secrets.baseline
 bandit-report.json
 security-reports/
 
