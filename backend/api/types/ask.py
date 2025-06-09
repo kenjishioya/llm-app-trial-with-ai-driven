@@ -3,7 +3,7 @@
 """
 
 import strawberry
-from typing import Optional, List
+from typing import Optional
 from dataclasses import dataclass
 
 
@@ -20,9 +20,8 @@ class AskInput:
 @strawberry.type
 @dataclass
 class AskPayload:
-    """質問応答ペイロード"""
+    """質問応答ペイロード - ドキュメント仕様準拠"""
 
-    answer: str
-    session_id: strawberry.ID
-    message_id: strawberry.ID
-    citations: List[str]
+    stream: str
+    session_id: strawberry.ID = strawberry.field(name="sessionId")
+    message_id: strawberry.ID = strawberry.field(name="messageId")

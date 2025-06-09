@@ -3,12 +3,15 @@ QRAI MVP API メインアプリケーション
 """
 
 import strawberry
-from fastapi import FastAPI
+from fastapi import FastAPI, Query as FastAPIQuery
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from strawberry.fastapi import GraphQLRouter
 from contextlib import asynccontextmanager
 import structlog
 from datetime import datetime
+import asyncio
+import json
 
 from api.resolvers import Query, Mutation, Subscription
 
@@ -63,3 +66,47 @@ async def health_check():
         "status": "ok",
         "timestamp": datetime.now().isoformat(),
     }
+
+
+@app.get("/graphql/stream")
+async def graphql_stream(
+    id: str = FastAPIQuery(..., description="Message ID for streaming")
+):
+    """GraphQL SSE ストリーミングエンドポイント"""
+
+    async def generate_stream():
+        """SSE ストリーム生成"""
+        # SSE ヘッダー
+        yield "data: " + json.dumps({"type": "connection_init"}) + "\n\n"
+
+        # メッセージ処理開始
+        yield "data: " + json.dumps(
+            {"type": "message", "messageId": id, "status": "processing"}
+        ) + "\n\n"
+
+        # シミュレートされた応答チャンク
+        response_chunks = [
+            "こんにちは、",
+            "ご質問にお答えします。",
+            "\n\nMVP版のストリーミング機能が",
+            "正常に動作しています。",
+        ]
+
+        for chunk in response_chunks:
+            await asyncio.sleep(0.1)  # 実際の処理を模擬
+            yield "data: " + json.dumps(
+                {"type": "chunk", "messageId": id, "content": chunk}
+            ) + "\n\n"
+
+        # 完了通知
+        yield "data: " + json.dumps({"type": "complete", "messageId": id}) + "\n\n"
+
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream",
+        },
+    )

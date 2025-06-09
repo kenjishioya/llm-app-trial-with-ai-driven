@@ -86,11 +86,13 @@ class Mutation:
                 deep_research=input.deep_research,
             )
 
+            # ストリーム用エンドポイントURL生成
+            stream_url = f"/graphql/stream?id={result['message_id']}"
+
             return AskPayload(
-                answer=result["answer"],
                 session_id=result["session_id"],
                 message_id=result["message_id"],
-                citations=result["citations"],
+                stream=stream_url,
             )
         # Fallback for mypy
         raise RuntimeError("Database session not available")

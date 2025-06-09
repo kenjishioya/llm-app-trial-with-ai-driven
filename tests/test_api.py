@@ -81,10 +81,9 @@ class TestGraphQLEndpoints:
                 sessionId: "{session_id}"
                 deepResearch: false
             }}) {{
-                answer
                 sessionId
                 messageId
-                citations
+                stream
             }}
         }}
         """
@@ -94,9 +93,11 @@ class TestGraphQLEndpoints:
         data = response.json()
         assert "data" in data
         ask_result = data["data"]["ask"]
-        assert "answer" in ask_result
         assert ask_result["sessionId"] == session_id
         assert "messageId" in ask_result
+        assert "stream" in ask_result
+        # streamフィールドはSSE endpoint URLを含む想定
+        assert isinstance(ask_result["stream"], str)
 
     def test_sessions_query(self, client):
         """セッション一覧クエリテスト"""
