@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { gql } from "@apollo/client";
 import * as Apollo from "@apollo/client";
 import * as ApolloReactHooks from "@apollo/client";

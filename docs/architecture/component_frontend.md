@@ -23,9 +23,10 @@ src/
     ProgressBar.tsx
 
   components/ui/       # shadcn/ui 自動生成フォルダ
-    Button.tsx
-    Card.tsx
-    Dialog.tsx
+    button.tsx
+    card.tsx
+    input.tsx
+    textarea.tsx
 
   hooks/
     useChatStream.ts
@@ -34,6 +35,9 @@ src/
   lib/
     graphqlClient.ts
     constants.ts
+
+  generated/           # GraphQL Code Generator出力
+    graphql.ts
 ```
 
 > 上記は **Mermaid Gantt** ではなく、プレーンテキストのツリー表記に変更。Mermaid パーサエラーを回避し、GitHub/VS Code でそのまま閲覧可能にしました。
@@ -120,8 +124,8 @@ classDiagram
 ## 6. スタイリング & UX ポリシー
 
 * **Tailwind CSS × shadcn/ui** を採用。Tailwind のユーティリティに加え、shadcn/ui の `Button`, `Card`, `Dialog` などリッチコンポーネントを利用して開発速度を向上。
-* プロジェクトルートの `components/ui` フォルダーに shadcn 生成コマンド `npx shadcn-ui@latest add button card dialog` で配置。
-* **ブランドカラー**: `from-blue-500 to-purple-600` グラデを基調に、shadcn テーマトークンを上書き (`tailwind.config.ts` の `extend.colors`)。
+* `src/components/ui` フォルダーに shadcn 生成コマンド `npx shadcn-ui@latest add button card input textarea` で配置。
+* **ブランドカラー**: `from-blue-500 to-purple-600` グラデを基調に、shadcn テーマトークンを上書き (`tailwind.config.js` の `extend.colors`)。
 * **レスポンシブ**: shadcn/ui は Radix UI ベースなのでアクセシビリティ対応済み。モバイルでは `Sheet` コンポーネントで Sidebar をドロワー表示。
 * **アクセシビリティ**: `aria-live="polite"` を `ChatWindow` に設定しストリーム更新を読み上げ。
 

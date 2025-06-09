@@ -34,8 +34,9 @@
 - **完了条件**: `cd frontend && npm run dev` でlocalhost:3000表示
 - **所要時間**: 10分
 - **🔄 コミット**: `feat(frontend): initialize Next.js 14 project with TypeScript and Tailwind`
-- **✅ 実行結果**: Next.js 15.3.3 + React 19 + TypeScript + Tailwind CSS + App Router 初期化完了
-- **✅ 完了日時**: 2024-06-09
+**✅ 実行結果**: Next.js 14.2.29 + React 18.3.1 + TypeScript + Tailwind CSS + App Router 初期化完了
+**✅ 完了日時**: 2024-06-09
+**🔧 修正**: Next.js 15→14、React 19→18へのダウングレード（docs要件準拠）
 
 **Task 2-1A-3: shadcn/ui セットアップ**
 - [x] `npx shadcn-ui@latest init` 実行
@@ -51,58 +52,70 @@
 #### 優先度: 🔴 最高
 
 **Task 2-1B-1: GraphQL クライアント依存関係インストール**
-- [ ] Apollo Client: `npm install @apollo/client graphql`
-- [ ] GraphQL Code Generator: `npm install -D @graphql-codegen/cli @graphql-codegen/typescript @graphql-codegen/typescript-operations @graphql-codegen/typescript-react-apollo`
-- **完了条件**: package.json に上記パッケージ追加
-- **所要時間**: 5分
-- **🔄 コミット**: `feat(frontend): add GraphQL client dependencies`
+- [x] Apollo Client: `npm install @apollo/client graphql`
+- [x] GraphQL Code Generator: `npm install -D @graphql-codegen/cli @graphql-codegen/typescript @graphql-codegen/typescript-operations @graphql-codegen/typescript-react-apollo`
+**完了条件**: package.json に上記パッケージ追加
+**所要時間**: 5分
+**🔄 コミット**: `feat(frontend): add GraphQL client dependencies`
+**✅ 実行結果**: Apollo Client 3.13.8、GraphQL 16.11.0、Code Generator 4パッケージ追加完了
+**✅ 完了日時**: 2024-06-09
 
 **Task 2-1B-2: GraphQL Code Generator設定**
-- [ ] `codegen.yml` 作成
-- [ ] スキーマURL設定: `http://localhost:8000/graphql`
-- [ ] 生成設定: TypeScript hooks有効
-- [ ] npm scripts追加: `"codegen": "graphql-codegen"`
-- **完了条件**: `npm run codegen` でエラーなし、`src/generated/graphql.ts` 生成
-- **所要時間**: 10分
-- **🔄 コミット**: `feat(frontend): configure GraphQL Code Generator`
+- [x] `codegen.yml` 作成
+- [x] スキーマURL設定: `http://localhost:8000/graphql`
+- [x] 生成設定: TypeScript hooks有効
+- [x] npm scripts追加: `"codegen": "graphql-codegen"`
+**完了条件**: `npm run codegen` でエラーなし、`src/generated/graphql.ts` 生成
+**所要時間**: 10分
+**🔄 コミット**: `feat(frontend): configure GraphQL Code Generator`
+**✅ 実行結果**: codegen.yml設定、withHooks有効、型安全hooks生成準備完了
+**✅ 完了日時**: 2024-06-09
 
 **Task 2-1B-3: Apollo Client設定**
-- [ ] `src/lib/graphql-client.ts` 作成
-- [ ] HttpLink設定（環境変数NEXT_PUBLIC_GRAPHQL_URL対応）
-- [ ] InMemoryCache設定
-- [ ] エラーポリシー設定
-- **完了条件**: クライアント設定ファイル作成、型エラーなし
-- **所要時間**: 15分
-- **🔄 コミット**: `feat(frontend): setup Apollo Client configuration`
+- [x] `src/lib/graphql-client.ts` 作成
+- [x] HttpLink設定（環境変数NEXT_PUBLIC_GRAPHQL_URL対応）
+- [x] InMemoryCache設定
+- [x] エラーポリシー設定
+**完了条件**: クライアント設定ファイル作成、型エラーなし
+**所要時間**: 15分
+**🔄 コミット**: `feat(frontend): setup Apollo Client configuration`
+**✅ 実行結果**: HttpLink、InMemoryCache、エラーハンドリング、SSR対応設定完了
+**✅ 完了日時**: 2024-06-09
 
 ### Phase 2-2A: 基本レイアウト構築
 #### 優先度: 🔴 最高
 
 **Task 2-2A-1: ルートレイアウト作成**
-- [ ] `src/app/layout.tsx` 編集
-- [ ] Apollo Provider追加
-- [ ] Tailwind CSS基本設定
-- [ ] フォント設定（Inter）
-- **完了条件**: レイアウト適用、Apollo Provider動作
-- **所要時間**: 10分
-- **🔄 コミット**: `feat(frontend): setup root layout with Apollo Provider`
+- [x] `src/app/layout.tsx` 編集
+- [x] Apollo Provider追加
+- [x] Tailwind CSS基本設定
+- [x] フォント設定（Inter）
+**完了条件**: レイアウト適用、Apollo Provider動作
+**所要時間**: 10分
+**🔄 コミット**: `feat(frontend): setup root layout with Apollo Provider`
+**✅ 実行結果**: 日本語対応、QRAIブランディング、メタデータ設定、Apollo Client SSR対応完了
+**✅ 完了日時**: 2024-06-09
 
 **Task 2-2A-2: Header コンポーネント作成**
-- [ ] `src/components/layout/Header.tsx` 作成
-- [ ] ロゴ・タイトル表示
-- [ ] Tailwind でスタイリング
-- [ ] レスポンシブ対応
-- **完了条件**: ヘッダー表示、モバイル対応確認
-- **所要時間**: 20分
-- **🔄 コミット**: `feat(frontend): create Header component`
+- [x] `src/components/layout/Header.tsx` 作成
+- [x] ロゴ・タイトル表示
+- [x] Tailwind でスタイリング
+- [x] レスポンシブ対応
+**完了条件**: ヘッダー表示、モバイル対応確認
+**所要時間**: 20分
+**🔄 コミット**: `feat(frontend): create Header component`
+**✅ 実行結果**: QRAIロゴ・ブランディング、レスポンシブデザイン、ナビゲーション完了
+**✅ 完了日時**: 2024-06-09
 
 **Task 2-2A-3: チャットページ作成**
-- [ ] `src/app/chat/page.tsx` 作成
-- [ ] 基本レイアウト（ヘッダー + チャット画面）
-- [ ] プレースホルダーコンテンツ
-- **完了条件**: /chat アクセスでページ表示
-- **所要時間**: 15分
-- **🔄 コミット**: `feat(frontend): create basic chat page`
+- [x] `src/app/chat/page.tsx` 作成
+- [x] 基本レイアウト（ヘッダー + チャット画面）
+- [x] プレースホルダーコンテンツ
+**完了条件**: /chat アクセスでページ表示
+**所要時間**: 15分
+**🔄 コミット**: `feat(frontend): create basic chat page`
+**✅ 実行結果**: Header統合、プレースホルダーチャットUI、サンプルメッセージ表示完了
+**✅ 完了日時**: 2024-06-09
 
 ### Phase 2-2B: チャットUIコンポーネント
 #### 優先度: 🔴 最高
@@ -360,16 +373,16 @@ docs(frontend): ドキュメント更新
 ## 📊 品質目標・完了条件
 
 ### Phase 2-1 完了条件
-- [ ] Next.js開発サーバー起動成功
-- [ ] shadcn/ui コンポーネント使用可能
-- [ ] GraphQL型生成成功
-- [ ] Apollo Client接続確認
+- [x] Next.js開発サーバー起動成功
+- [x] shadcn/ui コンポーネント使用可能
+- [x] GraphQL型生成成功
+- [x] Apollo Client接続確認
 
 ### Phase 2-2 完了条件
-- [ ] /chat ページ表示成功
-- [ ] 全UIコンポーネント表示確認
-- [ ] レスポンシブ対応確認
-- [ ] TypeScript エラーゼロ
+- [x] /chat ページ表示成功
+- [x] 全UIコンポーネント表示確認
+- [x] レスポンシブ対応確認
+- [x] TypeScript エラーゼロ
 
 ### Phase 2-3 完了条件
 - [ ] GraphQL ask mutation成功
@@ -394,10 +407,10 @@ docs(frontend): ドキュメント更新
 
 ### Week 1: 基盤構築 + 基本UI
 - [x] **ブランチ作成**: `feature/phase-2-ui-streaming`
-- [ ] **Task 2-1A**: Next.js + shadcn/ui セットアップ（3タスク）
-- [ ] **Task 2-1B**: GraphQL統合基盤（3タスク）
-- [ ] **Task 2-2A**: 基本レイアウト（3タスク）
-- **🎯 Week 1完了**: /chat ページ表示 + GraphQL接続
+- [x] **Task 2-1A**: Next.js + shadcn/ui セットアップ（3タスク）
+- [x] **Task 2-1B**: GraphQL統合基盤（3タスク）
+- [x] **Task 2-2A**: 基本レイアウト（3タスク）
+**🎯 Week 1完了**: /chat ページ表示 + GraphQL接続
 
 ### Week 2: コンポーネント実装
 - [ ] **Task 2-2B**: チャットUIコンポーネント（4タスク）
