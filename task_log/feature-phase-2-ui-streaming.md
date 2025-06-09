@@ -38,12 +38,14 @@
 - **✅ 完了日時**: 2024-06-09
 
 **Task 2-1A-3: shadcn/ui セットアップ**
-- [ ] `npx shadcn-ui@latest init` 実行
-- [ ] components.json 設定確認
-- [ ] 基本コンポーネント追加: `npx shadcn-ui@latest add button card input textarea`
+- [x] `npx shadcn-ui@latest init` 実行
+- [x] components.json 設定確認
+- [x] 基本コンポーネント追加: `npx shadcn-ui@latest add button card input textarea`
 - **完了条件**: `src/components/ui/` に button.tsx, card.tsx, input.tsx, textarea.tsx 存在
 - **所要時間**: 15分
 - **🔄 コミット**: `feat(frontend): setup shadcn/ui with basic components`
+- **✅ 実行結果**: shadcn v2.6.1 + New York style + 4基本コンポーネント追加完了
+- **✅ 完了日時**: 2024-06-09
 
 ### Phase 2-1B: GraphQL統合基盤
 #### 優先度: 🔴 最高
