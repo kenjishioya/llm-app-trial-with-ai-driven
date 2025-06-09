@@ -1,70 +1,40 @@
 version: '3.8'
 
 services:
-  # FastAPI Backend (テスト用)
-  backend:
+  # テスト用APIサービス
+  api-test:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: test
-    ports:
-      - "8000:8000"
+      target: development
     environment:
       - ENV=test
-      - LOG_LEVEL=INFO
+      - LOG_LEVEL=DEBUG
       - PYTHONPATH=/app
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
-
-      # テスト用データベース
-      - DATABASE_URL=sqlite:///./test.db
-      - TEST_DATABASE_URL=sqlite:///./test_test.db
-
-      # LLM Provider設定（テスト用モック）
+      - QRAI_DATABASE_URL=sqlite+aiosqlite:///./test.db
       - LLM_PRIMARY_PROVIDER=mock
       - LLM_FALLBACK_PROVIDERS=mock
-
-      # テスト用モックキー
-      - OPENROUTER_API_KEY=mock-openrouter-key
-      - GOOGLE_AI_API_KEY=mock-google-key
-      - AZURE_OPENAI_API_KEY=mock-azure-key
-      - AZURE_OPENAI_ENDPOINT=https://mock.openai.azure.com
-      - AZURE_SEARCH_ENDPOINT=https://mock-search.search.windows.net
-      - AZURE_SEARCH_API_KEY=mock-search-key
-
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    volumes:
+      - ./backend:/app
+      - ./tests:/app/tests
+      - test_cache:/root/.cache
+    working_dir: /app
+    command: >
+      sh -c "
+        echo 'Waiting for dependencies...' &&
+        sleep 2 &&
+        echo 'Running database migrations...' &&
+        alembic upgrade head &&
+        echo 'Running tests...' &&
+        python -m pytest tests/ -v --cov=. --cov-report=term-missing --cov-report=html --tb=short
+      "
     networks:
       - test-network
 
-  # Next.js Frontend (テスト用)
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: test
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=test
-      - NEXT_PUBLIC_API_URL=http://backend:8000
-      - NEXT_PUBLIC_GRAPHQL_URL=http://backend:8000/graphql
-      - NEXT_PUBLIC_GRAPHQL_WS_URL=ws://backend:8000/graphql
-    command: npm start
-    depends_on:
-      backend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - test-network
+volumes:
+  test_cache:
 
 networks:
   test-network:
