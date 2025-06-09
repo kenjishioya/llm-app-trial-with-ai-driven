@@ -17,21 +17,21 @@ services:
       - PYTHONUNBUFFERED=1
 
       # Database (開発用はSQLite)
-      - DATABASE_URL=sqlite:///./test.db
+      - QRAI_DATABASE_URL=sqlite+aiosqlite:///./test.db
 
       # LLM Provider設定（環境変数から取得）
-      - LLM_PRIMARY_PROVIDER=${LLM_PRIMARY_PROVIDER:-openrouter}
-      - LLM_FALLBACK_PROVIDERS=${LLM_FALLBACK_PROVIDERS:-google_ai,azure_openai}
+      - QRAI_LLM_PRIMARY_PROVIDER=${LLM_PRIMARY_PROVIDER:-openrouter}
+      - QRAI_LLM_FALLBACK_PROVIDERS=${LLM_FALLBACK_PROVIDERS:-google_ai,azure_openai}
 
       # Key Vault（開発環境では直接環境変数）
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-}
-      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
-      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - QRAI_OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - QRAI_GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-}
+      - QRAI_AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - QRAI_AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
 
       # Azure Search（開発環境では無効化可能）
-      - AZURE_SEARCH_ENDPOINT=${AZURE_SEARCH_ENDPOINT:-}
-      - AZURE_SEARCH_API_KEY=${AZURE_SEARCH_API_KEY:-}
+      - QRAI_AZURE_SEARCH_ENDPOINT=${AZURE_SEARCH_ENDPOINT:-}
+      - QRAI_AZURE_SEARCH_API_KEY=${AZURE_SEARCH_API_KEY:-}
 
     volumes:
       - ./backend:/app
@@ -45,33 +45,33 @@ services:
     networks:
       - qrai-network
 
-  # Next.js Frontend
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: development
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-      - NEXT_PUBLIC_GRAPHQL_URL=http://localhost:8000/graphql
-      - NEXT_PUBLIC_GRAPHQL_WS_URL=ws://localhost:8000/graphql
-    volumes:
-      - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
-      - frontend_next:/app/.next
-    command: npm run dev
-    depends_on:
-      - backend
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - qrai-network
+  # Next.js Frontend (temporarily disabled for backend testing)
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #     target: development
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - NODE_ENV=development
+  #     - NEXT_PUBLIC_API_URL=http://localhost:8000
+  #     - NEXT_PUBLIC_GRAPHQL_URL=http://localhost:8000/graphql
+  #     - NEXT_PUBLIC_GRAPHQL_WS_URL=ws://localhost:8000/graphql
+  #   volumes:
+  #     - ./frontend:/app
+  #     - frontend_node_modules:/app/node_modules
+  #     - frontend_next:/app/.next
+  #   command: npm run dev
+  #   depends_on:
+  #     - backend
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3000"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   networks:
+  #     - qrai-network
 
   # PostgreSQL (本番環境のCosmos DB代替)
   postgres:
@@ -111,8 +111,8 @@ services:
 
 volumes:
   backend_cache:
-  frontend_node_modules:
-  frontend_next:
+  # frontend_node_modules:
+  # frontend_next:
   postgres_data:
   redis_data:
 
