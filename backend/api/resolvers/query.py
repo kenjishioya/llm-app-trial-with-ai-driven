@@ -32,24 +32,57 @@ class Query:
         return HealthType(status="ok", timestamp=datetime.now().isoformat())
 
     @strawberry.field
-    async def sessions(self) -> List[SessionType]:
+    async def sessions(self, include_messages: bool = False) -> List[SessionType]:
         """セッション一覧取得"""
         async for db in get_db():
             session_service = SessionService(db)
-            sessions = await session_service.get_sessions()
 
-            return [
-                SessionType(
-                    id=session.id,
-                    title=session.title,
-                    created_at=session.created_at.isoformat(),
-                    updated_at=(
-                        session.updated_at.isoformat() if session.updated_at else None
-                    ),
-                    messages=[],
-                )
-                for session in sessions
-            ]
+            if include_messages:
+                # メッセージも含めて取得（より重い操作）
+                sessions = await session_service.get_sessions_with_messages()
+
+                return [
+                    SessionType(
+                        id=session.id,
+                        title=session.title,
+                        created_at=session.created_at.isoformat(),
+                        updated_at=(
+                            session.updated_at.isoformat()
+                            if session.updated_at
+                            else None
+                        ),
+                        messages=[
+                            MessageType(
+                                id=msg.id,
+                                role=GraphQLMessageRole(msg.role.value),
+                                content=msg.content,
+                                created_at=msg.created_at.isoformat(),
+                                citations=[],  # JSON文字列から変換
+                                meta_data={},  # JSON文字列から変換
+                            )
+                            for msg in session.messages[:5]  # 最新5件のみ
+                        ],
+                    )
+                    for session in sessions
+                ]
+            else:
+                # 軽量版: メッセージは含めない（デフォルト動作維持）
+                sessions = await session_service.get_sessions()
+
+                return [
+                    SessionType(
+                        id=session.id,
+                        title=session.title,
+                        created_at=session.created_at.isoformat(),
+                        updated_at=(
+                            session.updated_at.isoformat()
+                            if session.updated_at
+                            else None
+                        ),
+                        messages=[],
+                    )
+                    for session in sessions
+                ]
         return []  # Fallback return for mypy
 
     @strawberry.field

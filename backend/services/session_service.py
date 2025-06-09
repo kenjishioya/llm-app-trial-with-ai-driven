@@ -51,6 +51,20 @@ class SessionService:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
+    async def get_sessions_with_messages(
+        self, limit: int = 50, offset: int = 0
+    ) -> List[Session]:
+        """メッセージ付きでセッション一覧を取得"""
+        stmt = (
+            select(Session)
+            .options(selectinload(Session.messages))
+            .order_by(Session.updated_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+
     async def update_session(self, session_id: str, title: str) -> Optional[Session]:
         """セッションを更新"""
         stmt = (
