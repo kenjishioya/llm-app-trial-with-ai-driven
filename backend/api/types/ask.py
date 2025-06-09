@@ -3,11 +3,12 @@
 """
 
 import strawberry
-from typing import Optional
-from .message import MessageType
+from typing import Optional, List
+from dataclasses import dataclass
 
 
 @strawberry.input
+@dataclass
 class AskInput:
     """質問入力"""
 
@@ -17,9 +18,11 @@ class AskInput:
 
 
 @strawberry.type
+@dataclass
 class AskPayload:
     """質問応答ペイロード"""
 
-    user_message: MessageType
-    assistant_message: MessageType
+    answer: str
     session_id: strawberry.ID
+    message_id: strawberry.ID
+    citations: List[str]

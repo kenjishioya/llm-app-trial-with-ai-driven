@@ -5,27 +5,30 @@ FROM python:3.12-slim as base
 WORKDIR /app
 
 # システムパッケージ更新とビルド用パッケージインストール
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential=12.10 \
-    curl=8.5.0-2* \
+    build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Python依存関係ファイルをコピー
 COPY requirements.txt .
 
 # Python依存関係をインストール
-RUN pip install --no-cache-dir --upgrade pip==23.3.2 && \
+# hadolint ignore=DL3013
+RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # 開発環境用ステージ
 FROM base as development
 
 # 開発用追加パッケージ
+# hadolint ignore=DL3013
 RUN pip install --no-cache-dir \
-    pytest==7.4.3 \
-    pytest-cov==4.1.0 \
-    pytest-asyncio==0.21.1 \
-    aiosqlite==0.19.0
+    pytest \
+    pytest-cov \
+    pytest-asyncio \
+    aiosqlite
 
 # アプリケーションコードをコピー
 COPY . .

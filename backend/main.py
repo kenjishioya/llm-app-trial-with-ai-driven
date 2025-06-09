@@ -3,13 +3,13 @@ QRAI MVP API メインアプリケーション
 """
 
 import strawberry
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from strawberry.fastapi import GraphQLRouter
 from contextlib import asynccontextmanager
 import structlog
+from datetime import datetime
 
-from deps import get_db
 from api.resolvers import Query, Mutation, Subscription
 
 
@@ -57,20 +57,9 @@ async def root():
 
 
 @app.get("/health")
-async def health_check(db=Depends(get_db)):
+async def health_check():
     """ヘルスチェックエンドポイント"""
-    try:
-        # フォールバック：新しいセッションを直接作成
-        from models import AsyncSessionLocal
-
-        async with AsyncSessionLocal() as fallback_session:
-            return {"db": fallback_session}
-    except Exception as e:
-        logger.error("Health check failed", error=str(e))
-        return {"status": "ok", "timestamp": "2025-06-09T00:00:00Z"}
-
     return {
         "status": "ok",
-        "database": "connected",
-        "timestamp": "2025-06-09T00:00:00Z",
+        "timestamp": datetime.now().isoformat(),
     }
