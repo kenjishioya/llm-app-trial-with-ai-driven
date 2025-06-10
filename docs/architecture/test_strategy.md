@@ -15,11 +15,11 @@ graph TB
         INTEGRATION[Integration Tests<br/>API + External Services<br/>Component Integration]
         UNIT[Unit Tests<br/>Individual Functions<br/>Component Logic]
     end
-    
+
     E2E --> |少数・高コスト・低速| INTEGRATION
     INTEGRATION --> |中程度・中コスト・中速| UNIT
     UNIT --> |多数・低コスト・高速| BASE[Foundation]
-    
+
     style E2E fill:#ff9999
     style INTEGRATION fill:#ffcc99
     style UNIT fill:#99ff99
@@ -73,10 +73,10 @@ async def test_rag_answer_with_citations(rag_service):
     ]
     rag_service.search_client.search.return_value = mock_search_results
     rag_service.openai_client.complete.return_value = "研修制度は年2回実施されます。"
-    
+
     # Act
     result = await rag_service.answer(question)
-    
+
     # Assert
     assert "研修制度は年2回実施されます" in result
     assert "[1]" in result  # 引用番号確認
@@ -105,7 +105,7 @@ def test_graphql_ask_mutation(client):
         }
     }
     """
-    
+
     response = client.post("/graphql", json={"query": query})
     assert response.status_code == 200
     data = response.json()
@@ -143,9 +143,9 @@ describe('MessageBubble', () => {
         timestamp: new Date()
       }
     }
-    
+
     render(<MessageBubble {...props} />)
-    
+
     expect(screen.getByText('テストメッセージ')).toBeInTheDocument()
     expect(screen.getByTestId('user-message')).toHaveClass('bg-blue-500')
   })
@@ -161,9 +161,9 @@ describe('MessageBubble', () => {
         ]
       }
     }
-    
+
     render(<MessageBubble {...props} />)
-    
+
     expect(screen.getByText('[1]')).toHaveAttribute('href', 'https://example.com')
   })
 })
@@ -177,19 +177,19 @@ import { useChatStream } from '@/hooks/useChatStream'
 describe('useChatStream', () => {
   it('ストリーミング開始・停止が正常動作する', async () => {
     const { result } = renderHook(() => useChatStream())
-    
+
     expect(result.current.isStreaming).toBe(false)
-    
+
     act(() => {
       result.current.startStream('session123', 'テスト質問')
     })
-    
+
     expect(result.current.isStreaming).toBe(true)
-    
+
     act(() => {
       result.current.stopStream()
     })
-    
+
     expect(result.current.isStreaming).toBe(false)
   })
 })
@@ -210,15 +210,15 @@ async def test_rag_with_real_azure_search():
         endpoint=os.getenv("AZURE_SEARCH_ENDPOINT"),
         key=os.getenv("AZURE_SEARCH_KEY")
     )
-    
+
     # テスト用インデックスにテストデータを投入
     await search_client.upload_documents([
         {"id": "test1", "content": "テスト文書内容", "title": "テスト文書"}
     ])
-    
+
     # 検索テスト実行
     results = await search_client.search("テスト", top_k=1)
-    
+
     assert len(results) == 1
     assert "テスト文書内容" in results[0]["content"]
 ```
@@ -235,7 +235,7 @@ async def test_session_crud_operations():
         session = Session(user_id="test_user", title="テストセッション")
         db.add(session)
         await db.commit()
-        
+
         # メッセージ追加
         message = Message(
             session_id=session.id,
@@ -244,7 +244,7 @@ async def test_session_crud_operations():
         )
         db.add(message)
         await db.commit()
-        
+
         # データ取得検証
         retrieved = await db.get(Session, session.id)
         assert retrieved.title == "テストセッション"
@@ -283,35 +283,35 @@ import { test, expect } from '@playwright/test'
 test.describe('チャット機能', () => {
   test('質問送信からAI応答まで', async ({ page }) => {
     await page.goto('/chat/new')
-    
+
     // 質問入力
     await page.fill('[data-testid="message-input"]', '社内研修制度について')
     await page.click('[data-testid="send-button"]')
-    
+
     // 送信確認
     await expect(page.locator('[data-testid="user-message"]')).toContainText('社内研修制度について')
-    
+
     // AI応答待機（最大10秒）
     await expect(page.locator('[data-testid="ai-message"]')).toBeVisible({ timeout: 10000 })
-    
+
     // 引用リンク確認
     await expect(page.locator('[data-testid="citation-link"]')).toBeVisible()
   })
 
   test('Deep Research機能', async ({ page }) => {
     await page.goto('/chat/new')
-    
+
     // Deep Research モード有効化
     await page.check('[data-testid="deep-research-toggle"]')
     await page.fill('[data-testid="message-input"]', '競合他社の動向を調査して')
     await page.click('[data-testid="send-button"]')
-    
+
     // プログレスバー表示確認
     await expect(page.locator('[data-testid="progress-bar"]')).toBeVisible()
-    
+
     // リサーチ完了確認（最大120秒）
     await expect(page.locator('[data-testid="research-report"]')).toBeVisible({ timeout: 120000 })
-    
+
     // レポート構造確認
     await expect(page.locator('h2')).toHaveCount({ min: 2 }) // セクション見出し
   })
@@ -332,7 +332,7 @@ async def test_full_rag_workflow():
         """
         response = await client.post("/graphql", json={"query": create_session_query})
         session_id = response.json()["data"]["createSession"]["id"]
-        
+
         # 質問送信
         ask_query = """
         mutation($sessionId: ID!, $question: String!) {
@@ -346,7 +346,7 @@ async def test_full_rag_workflow():
             "query": ask_query,
             "variables": {"sessionId": session_id, "question": "テスト質問"}
         })
-        
+
         assert response.status_code == 200
         data = response.json()["data"]["ask"]
         assert len(data["answer"]) > 0
@@ -364,16 +364,16 @@ from locust import HttpUser, task, between
 
 class QRAIUser(HttpUser):
     wait_time = between(1, 3)  # 1-3秒間隔
-    
+
     def on_start(self):
         """テスト開始時の初期化"""
         self.session_id = self.create_session()
-    
+
     def create_session(self):
         query = """mutation { createSession(title: "Load Test") { id } }"""
         response = self.client.post("/graphql", json={"query": query})
         return response.json()["data"]["createSession"]["id"]
-    
+
     @task(3)
     def ask_rag_question(self):
         """RAG質問（重み3：頻度高）"""
@@ -389,7 +389,7 @@ class QRAIUser(HttpUser):
             "有給休暇の取得方法",
             "人事評価制度はどのようになっていますか"
         ]
-        
+
         self.client.post("/graphql", json={
             "query": query,
             "variables": {
@@ -397,7 +397,7 @@ class QRAIUser(HttpUser):
                 "question": self.random_choice(questions)
             }
         }, name="RAG質問")
-    
+
     @task(1)
     def ask_deep_research(self):
         """Deep Research（重み1：頻度低）"""
@@ -408,7 +408,7 @@ class QRAIUser(HttpUser):
             }
         }
         """
-        
+
         self.client.post("/graphql", json={
             "query": query,
             "variables": {
@@ -441,7 +441,7 @@ from models import Session, Message
 class SessionFactory(factory.Factory):
     class Meta:
         model = Session
-    
+
     user_id = factory.Sequence(lambda n: f"test_user_{n}")
     title = factory.Faker('sentence', nb_words=3)
     created_at = factory.Faker('date_time_this_year')
@@ -449,11 +449,11 @@ class SessionFactory(factory.Factory):
 class MessageFactory(factory.Factory):
     class Meta:
         model = Message
-    
+
     session = factory.SubFactory(SessionFactory)
     content = factory.Faker('text', max_nb_chars=500)
     role = factory.Iterator(['user', 'assistant'])
-    
+
 # 使用例
 def test_with_sample_data():
     session = SessionFactory()
@@ -474,7 +474,7 @@ class MockAzureSearchClient:
                 "title": "テスト文書1"
             }
         ]
-    
+
     async def search(self, query: str, top_k: int = 3):
         return self.mock_results[:top_k]
 
@@ -511,31 +511,31 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
-          
+
       - name: Install dependencies
         run: |
           pip install -r backend/requirements-dev.txt
-          
+
       - name: Run Python unit tests
         run: |
           cd backend
           pytest tests/unit/ --cov=. --cov-report=xml
-          
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          
+
       - name: Install frontend dependencies
         run: |
           cd frontend
           pnpm install
-          
+
       - name: Run frontend unit tests
         run: |
           cd frontend
           pnpm test:unit
-          
+
   integration-tests:
     runs-on: ubuntu-latest
     needs: unit-tests
@@ -549,14 +549,14 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-          
+
     steps:
       - uses: actions/checkout@v4
       - name: Run integration tests
         run: |
           cd backend
           pytest tests/integration/ --tb=short
-          
+
   e2e-tests:
     runs-on: ubuntu-latest
     needs: integration-tests
@@ -564,12 +564,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Start services
         run: docker compose up -d
-        
+
       - name: Run E2E tests
         run: |
           cd frontend
           pnpm playwright test
-          
+
       - name: Upload test results
         uses: actions/upload-artifact@v3
         if: always()
@@ -586,11 +586,11 @@ repos:
   - repo: local
     hooks:
       - id: pytest-unit
-        name: Run unit tests
+        name: Unit tests
         entry: bash -c 'cd backend && pytest tests/unit/ --tb=short'
         language: system
         pass_filenames: false
-        
+
       - id: frontend-test
         name: Run frontend tests
         entry: bash -c 'cd frontend && pnpm test:unit --run'
@@ -616,13 +616,13 @@ repos:
 ```python
 # pytest.ini
 [tool:pytest]
-addopts = 
+addopts =
     --cov=backend
     --cov-report=term-missing
     --cov-fail-under=80
     --maxfail=5
     --tb=short
-    
+
 testpaths = tests
 python_files = test_*.py
 python_classes = Test*
@@ -648,4 +648,4 @@ python_functions = test_*
 
 ---
 
-*Last updated: 2025-06-03* 
+*Last updated: 2025-06-03*

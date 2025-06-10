@@ -1,10 +1,8 @@
 """
 GraphQL API統合テスト
 """
-import pytest
-import json
+
 import uuid
-from fastapi.testclient import TestClient
 
 
 class TestHealthEndpoint:

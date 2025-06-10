@@ -1,10 +1,10 @@
 """
 LLMプロバイダーテスト
 """
+
 import pytest
 from providers.mock import MockLLMProvider
 from providers.factory import LLMProviderFactory
-from providers.base import LLMError
 
 
 class TestMockLLMProvider:
@@ -14,8 +14,7 @@ class TestMockLLMProvider:
     async def test_generate_successful_response(self, mock_llm_provider):
         """正常なレスポンス生成テスト"""
         response = await mock_llm_provider.generate(
-            prompt="Test prompt",
-            max_tokens=100
+            prompt="Test prompt", max_tokens=100
         )
 
         # 実装は日本語で応答する
@@ -30,9 +29,7 @@ class TestMockLLMProvider:
     async def test_generate_with_system_message(self, mock_llm_provider):
         """システムメッセージ付きテスト"""
         response = await mock_llm_provider.generate(
-            prompt="User prompt",
-            system_message="System instruction",
-            max_tokens=100
+            prompt="User prompt", system_message="System instruction", max_tokens=100
         )
 
         # MockProviderはシステムメッセージは無視するが、プロンプトは含まれる
@@ -44,10 +41,7 @@ class TestMockLLMProvider:
     async def test_generate_with_error_simulation(self, mock_llm_provider):
         """エラーシミュレーションテスト"""
         # モックプロバイダーは通常エラーを発生させないので、正常応答を確認
-        response = await mock_llm_provider.generate(
-            prompt="Error test",
-            max_tokens=100
-        )
+        response = await mock_llm_provider.generate(prompt="Error test", max_tokens=100)
 
         assert "Error test" in response.content
         assert "モック応答" in response.content
@@ -58,8 +52,7 @@ class TestMockLLMProvider:
         """ストリーミングレスポンステスト"""
         chunks = []
         async for chunk in mock_llm_provider.stream_generate(
-            prompt="Stream test",
-            max_tokens=50
+            prompt="Stream test", max_tokens=50
         ):
             chunks.append(chunk)
 

@@ -90,7 +90,7 @@ feat(api): add streaming SSE for RAG answers
 
 自動チェック
 
-1. `pnpm test` & `pytest -q`
+1. `pnpm test` & `cd backend && pytest -q`
 2. `prettier --check`, `ruff --fix-diff`
 3. `terraform plan -detailed-exitcode`
 4. `az deployment what-if` (Bicep)
@@ -148,7 +148,7 @@ PR 作成時の最小要件：
 
 PR 作成前に以下を確認してください：
 
-1. `pnpm test` & `pytest -q`
+1. `pnpm test` & `cd backend && pytest -q`
 2. `pre-commit run --all-files`
 3. コンフリクト解消済み
 
@@ -157,3 +157,35 @@ PR 作成前に以下を確認してください：
 Happy coding! 🎉
 
 *Last updated: 2025-06-03*
+
+## PR 作成フロー
+
+1. ブランチ作成: `git checkout -b feature/your-feature`
+2. 実装: 機能追加、修正、テスト追加
+3. テスト: `pnpm test` & `cd backend && pytest -q`
+4. Lint: `pnpm lint` & `ruff check --fix`
+5. コミット: `git commit -m "type(scope): short description"`
+6. プッシュ: `git push origin feature/your-feature`
+7. GitHub で PR 作成 → レビュー → マージ
+
+---
+
+## 技術別ガイドライン
+
+### Python (Backend)
+- **Python**: 新規機能には `pytest` テスト追加、カバレッジ 80% 以上維持
+- **FastAPI**: OpenAPI schema 自動生成、/docs 確認
+- **SQLAlchemy**: migration作成時は必ず `alembic revision --autogenerate`
+- **GraphQL**: Strawberry型定義、リゾルバ単体テスト
+
+### TypeScript (Frontend)
+- **Next.js**: App Routerを使用、pages は使わない
+- **React**: コンポーネント設計は shadcn/ui に倣う
+- **Tailwind**: カスタムCSSクラスではなくユーティリティクラス使用
+
+---
+
+## コミット前チェック
+
+1. `pnpm test` & `cd backend && pytest -q`
+2. `pnpm lint` & `ruff check --fix`
