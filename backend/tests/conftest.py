@@ -19,6 +19,10 @@ if str(backend_path) not in sys.path:
 from main import app  # noqa: E402
 from models import Base  # noqa: E402
 
+# モデルクラスを明示的にインポート（テーブル作成のため）
+from models.session import Session  # noqa: E402, F401
+from models.message import Message  # noqa: E402, F401
+
 
 @pytest.fixture
 def db_session():
@@ -35,7 +39,31 @@ def db_session():
     )
 
     # テーブル作成（同期）
+    print(f"Creating tables for database: {test_db_path}")
+    print(f"Available tables in metadata: {list(Base.metadata.tables.keys())}")
+
+    # SQLAlchemy metadata からテーブル作成
     Base.metadata.create_all(bind=engine)
+
+    # Alembicマイグレーションも実行（確実にテーブル作成）
+    try:
+        from alembic.config import Config
+        from alembic import command
+
+        # 一時的なalembic.iniを作成
+        alembic_cfg = Config()
+        alembic_cfg.set_main_option("script_location", "migrations")
+        alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{test_db_path}")
+
+        # マイグレーション実行
+        command.upgrade(alembic_cfg, "head")
+        print("Alembic migration completed successfully")
+    except Exception as e:
+        print(f"Alembic migration failed: {e}")
+        # Alembicが失敗してもテストは継続
+        pass
+
+    print("Tables created successfully")
 
     # セッション作成
     SessionLocal = sessionmaker(
