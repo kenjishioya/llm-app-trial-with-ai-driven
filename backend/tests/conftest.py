@@ -1,15 +1,15 @@
 """
-pytest設定とフィクスチャ - CI修正版 2025-06-10
+pytest設定とフィクスチャ - CI修正版 同期統一 2025-06-10
 """
 
 import pytest
-import asyncio
 import tempfile
 import os
 import sys
 from pathlib import Path
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 # PythonPathを動的に追加（CI環境対応）
 backend_path = Path(__file__).parent.parent
@@ -18,87 +18,44 @@ if str(backend_path) not in sys.path:
 
 from main import app  # noqa: E402
 from models import Base  # noqa: E402
-from database import get_db  # noqa: E402
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """テスト用イベントループ"""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
-# データベースエンジンとセッションファクトリー管理
-_test_engines = {}
-_test_sessionmakers = {}
-
-
-async def create_test_session() -> AsyncSession:
-    """独立したテスト用データベースセッションを作成"""
-    # 常に一時SQLiteを使用（CI/ローカル両対応）
+@pytest.fixture
+def db_session():
+    """テスト用データベースセッション（同期・独立）"""
+    # 一時SQLiteファイル作成
     test_db_fd, test_db_path = tempfile.mkstemp(suffix=".db")
     os.close(test_db_fd)
 
-    engine = create_async_engine(
-        f"sqlite+aiosqlite:///{test_db_path}",
+    # 同期エンジン作成
+    engine = create_engine(
+        f"sqlite:///{test_db_path}",
         echo=False,
-        future=True,
-        pool_pre_ping=True,
-        pool_recycle=300,
         connect_args={"check_same_thread": False},
     )
 
-    # テーブル作成
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # テーブル作成（同期）
+    Base.metadata.create_all(bind=engine)
 
-    # セッションファクトリー作成
-    TestSessionLocal = async_sessionmaker(
+    # セッション作成
+    SessionLocal = sessionmaker(
         bind=engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
         autoflush=False,
         autocommit=False,
     )
 
-    # リソース管理用にID保存
-    test_id = id(engine)
-    _test_engines[test_id] = engine
-    _test_sessionmakers[test_id] = TestSessionLocal
-
-    session = TestSessionLocal()
+    session = SessionLocal()
     session._test_db_path = test_db_path
-    session._test_id = test_id
-
-    return session
-
-
-@pytest.fixture
-async def db_session():
-    """テスト用データベースセッション（各テスト独立）"""
-    session = await create_test_session()
 
     try:
         yield session
     except Exception:
-        await session.rollback()
+        session.rollback()
         raise
     finally:
-        # クリーンアップ
-        test_id = session._test_id
-        test_db_path = session._test_db_path
-
-        await session.rollback()
-        await session.close()
-
-        # エンジンとファクトリークリーンアップ
-        if test_id in _test_engines:
-            engine = _test_engines.pop(test_id)
-            await engine.dispose()
-
-        if test_id in _test_sessionmakers:
-            _test_sessionmakers.pop(test_id)
+        session.rollback()
+        session.close()
+        engine.dispose()
 
         # SQLiteファイル削除
         if os.path.exists(test_db_path):
@@ -107,11 +64,52 @@ async def db_session():
 
 @pytest.fixture
 def client(db_session):
-    """テスト用HTTPクライアント"""
+    """テスト用HTTPクライアント（同期対応）"""
 
-    # データベースセッションを上書き
+    # 同期セッションを非同期セッションに変換するラッパー
+    class AsyncSessionWrapper:
+        def __init__(self, sync_session):
+            self._sync_session = sync_session
+
+        async def add(self, instance):
+            self._sync_session.add(instance)
+
+        async def commit(self):
+            self._sync_session.commit()
+
+        async def rollback(self):
+            self._sync_session.rollback()
+
+        async def refresh(self, instance):
+            self._sync_session.refresh(instance)
+
+        async def delete(self, instance):
+            self._sync_session.delete(instance)
+
+        def query(self, *args, **kwargs):
+            return self._sync_session.query(*args, **kwargs)
+
+        async def execute(self, stmt):
+            return self._sync_session.execute(stmt)
+
+        async def get(self, entity, ident):
+            return self._sync_session.get(entity, ident)
+
+        async def merge(self, instance):
+            return self._sync_session.merge(instance)
+
+        async def close(self):
+            self._sync_session.close()
+
+    # 非同期セッション依存関係のオーバーライド
     async def override_get_db():
-        yield db_session
+        wrapper = AsyncSessionWrapper(db_session)
+        try:
+            yield wrapper
+        finally:
+            await wrapper.close()
+
+    from database import get_db
 
     app.dependency_overrides[get_db] = override_get_db
 
