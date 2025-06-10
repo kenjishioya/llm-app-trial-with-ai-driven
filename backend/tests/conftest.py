@@ -1,5 +1,5 @@
 """
-pytest設定とフィクスチャ
+pytest設定とフィクスチャ - CI修正版 2025-06-10
 """
 
 import pytest
