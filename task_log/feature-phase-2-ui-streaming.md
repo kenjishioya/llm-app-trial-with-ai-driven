@@ -171,30 +171,36 @@
 #### 優先度: 🟡 高
 
 **Task 2-3A-1: GraphQL型定義生成**
-- [ ] バックエンド起動確認
-- [ ] `npm run codegen` 実行
-- [ ] 生成された型確認（AskInput, AskPayload等）
-- [ ] 型インポート動作確認
+- [x] バックエンド起動確認
+- [x] `npm run codegen` 実行
+- [x] 生成された型確認（AskInput, AskPayload等）
+- [x] 型インポート動作確認
 - **完了条件**: 型生成成功、TypeScript エラーなし
 - **所要時間**: 10分
 - **🔄 コミット**: `feat(frontend): generate GraphQL types from backend schema`
+- **✅ 実行結果**: GraphQL Code Generator成功、Apollo Client hooks生成、型安全性確保完了
+- **✅ 完了日時**: 2024-06-10
 
 **Task 2-3A-2: ask mutation フック作成**
-- [ ] 生成されたuseMutationフック使用
-- [ ] エラーハンドリング追加
-- [ ] レスポンス型安全性確認
+- [x] 生成されたuseMutationフック使用
+- [x] エラーハンドリング追加
+- [x] レスポンス型安全性確認
 - **完了条件**: ask mutation呼び出し成功、型安全
 - **所要時間**: 15分
 - **🔄 コミット**: `feat(frontend): implement ask mutation with type safety`
+- **✅ 実行結果**: useAskMutation統合、エラーハンドリング、ローディング状態管理完了
+- **✅ 完了日時**: 2024-06-10
 
 **Task 2-3A-3: ChatWindow GraphQL統合**
-- [ ] ask mutation をChatWindowに統合
-- [ ] 質問送信→レスポンス受信フロー
-- [ ] エラー状態表示
-- [ ] ローディング状態管理
+- [x] ask mutation をChatWindowに統合
+- [x] 質問送信→レスポンス受信フロー
+- [x] エラー状態表示
+- [x] ローディング状態管理
 - **完了条件**: 実際の質問送信・応答表示動作
 - **所要時間**: 25分
 - **🔄 コミット**: `feat(frontend): integrate ask mutation into ChatWindow`
+- **✅ 実行結果**: GraphQL mutation統合、セッション管理、useChatSessionフック、完全統合完了
+- **✅ 完了日時**: 2024-06-10
 
 ### Phase 2-3B: SSEストリーミング実装
 #### 優先度: 🟡 高
@@ -366,9 +372,10 @@ docs(frontend): ドキュメント更新
 2. ✅ **Task 2-1A-3完了時**: shadcn/ui設定後
 3. ✅ **Task 2-1B-3完了時**: GraphQL設定完了後
 4. ✅ **Task 2-2B-4完了時**: ChatWindow完成後
-5. ✅ **Task 2-3B-3完了時**: ストリーミング機能完成後
-6. ✅ **Task 2-4A-2完了時**: ユニットテスト完成後
-7. ✅ **Task 2-4B-2完了時**: E2Eテスト完成後
+5. ✅ **Task 2-3A-3完了時**: GraphQL統合実装完了後
+6. [ ] **Task 2-3B-3完了時**: ストリーミング機能完成後
+7. [ ] **Task 2-4A-2完了時**: ユニットテスト完成後
+8. [ ] **Task 2-4B-2完了時**: E2Eテスト完成後
 
 **🚨 ファイル削除防止策**:
 - 各マイルストーン開始前に `git status` 確認
@@ -400,10 +407,16 @@ docs(frontend): ドキュメント更新
 - ✅ **チャットページ統合**: 完全なチャットUI、実際のメッセージ送受信フロー
 
 ### Phase 2-3 完了条件
-- [ ] GraphQL ask mutation成功
+- [x] GraphQL ask mutation成功
 - [ ] SSEストリーミング動作確認
-- [ ] エラーハンドリング動作確認
-- [ ] フロントエンド・バックエンド統合成功
+- [x] エラーハンドリング動作確認
+- [x] フロントエンド・バックエンド統合成功
+
+### 🎯 Phase 2-3A 達成項目
+- ✅ **GraphQL型定義生成**: Code Generator + Apollo Client hooks
+- ✅ **ask mutation統合**: 型安全なuseAskMutation、エラーハンドリング
+- ✅ **セッション管理**: useChatSessionフック、CRUD操作
+- ✅ **完全統合**: ChatWindow + GraphQL + セッション管理の完全統合
 
 ### Phase 2-4 完了条件
 - [ ] ユニットテストカバレッジ >70%
@@ -428,8 +441,8 @@ docs(frontend): ドキュメント更新
 **🎯 Week 1完了**: /chat ページ表示 + GraphQL接続
 
 ### Week 2: コンポーネント実装
-- [ ] **Task 2-2B**: チャットUIコンポーネント（4タスク）
-- [ ] **Task 2-3A**: GraphQL統合実装（3タスク）
+- [x] **Task 2-2B**: チャットUIコンポーネント（4タスク）
+- [x] **Task 2-3A**: GraphQL統合実装（3タスク）
 - **🎯 Week 2完了**: 静的チャットUI + GraphQL mutation動作
 
 ### Week 3: ストリーミング機能
@@ -448,4 +461,4 @@ docs(frontend): ドキュメント更新
 **🎯 Phase 2完了により、QRAIの基本チャット機能が実際にブラウザで動作可能になります！**
 
 *作成日: 2024-06-09*
-*最終更新: 2024-06-09*
+*最終更新: 2024-06-10*

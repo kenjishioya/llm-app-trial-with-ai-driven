@@ -4,8 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import MessageBubble from "./MessageBubble";
 import InputForm from "./InputForm";
 import { LoadingMessage } from "./LoadingSpinner";
+import { useAskMutation, AskInput } from "@/generated/graphql";
 
-// メッセージ型定義
+// メッセージ型定義（GraphQL型に合わせて拡張）
 interface Message {
   id: string;
   content: string;
@@ -37,6 +38,28 @@ export default function ChatWindow({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // GraphQL ask mutation フック
+  const [askMutation, { loading: mutationLoading, error: mutationError }] =
+    useAskMutation({
+      onCompleted: (data) => {
+        console.log("Ask mutation completed:", data);
+        // ストリーミング開始の処理はここで行う予定
+      },
+      onError: (error) => {
+        console.error("Ask mutation error:", error);
+        setIsLoading(false);
+
+        // エラーメッセージを追加
+        const errorMessage: Message = {
+          id: `error-${Date.now()}`,
+          content: `エラーが発生しました: ${error.message}`,
+          role: "assistant",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      },
+    });
+
   // 自動スクロール機能
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
@@ -50,7 +73,7 @@ export default function ChatWindow({
     scrollToBottom();
   }, [messages]);
 
-  // メッセージ送信処理
+  // メッセージ送信処理（GraphQL統合版）
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -64,21 +87,36 @@ export default function ChatWindow({
     setIsLoading(true);
 
     try {
-      // 外部コールバック実行（実際のAPI呼び出し）
+      // GraphQL ask mutation実行
+      const askInput: AskInput = {
+        question: content,
+        sessionId: sessionId || undefined,
+        deepResearch: false, // 通常のチャットではfalse
+      };
+
+      const result = await askMutation({
+        variables: { input: askInput },
+      });
+
+      console.log("Ask mutation result:", result);
+
+      // 外部コールバック実行（従来のローディング）
       if (onMessageSend) {
         await onMessageSend(content, sessionId);
       } else {
-        // デモ用のダミー応答
+        // デモ用のダミー応答（実際のストリーミングが実装されるまで）
         await simulateDemoResponse();
       }
     } catch (error) {
       console.error("メッセージ送信エラー:", error);
 
-      // エラーメッセージを追加
+      // GraphQLエラーの詳細なハンドリング
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         content:
-          "申し訳ございません。エラーが発生しました。もう一度お試しください。",
+          error instanceof Error
+            ? `通信エラーが発生しました: ${error.message}`
+            : "不明なエラーが発生しました。もう一度お試しください。",
         role: "assistant",
         timestamp: new Date(),
       };
@@ -95,10 +133,13 @@ export default function ChatWindow({
         const assistantMessage: Message = {
           id: `assistant-${Date.now()}`,
           content:
-            "こんにちは！これはデモ応答です。実際のAPIが実装されると、AIからの回答が表示されます。",
+            "GraphQL統合テスト: この応答はask mutationを経由して送信されました。実際のストリーミング機能は次のフェーズで実装されます。",
           role: "assistant",
           timestamp: new Date(),
-          citations: ["https://example.com/doc1", "https://example.com/doc2"],
+          citations: [
+            "https://graphql.org/learn/",
+            "https://www.apollographql.com/docs/",
+          ],
         };
         setMessages((prev) => [...prev, assistantMessage]);
         resolve();
@@ -109,8 +150,18 @@ export default function ChatWindow({
   // メッセージリストの最適化（最大件数制限）
   const displayMessages = messages.slice(-maxMessages);
 
+  // ローディング状態を統合（GraphQL + 従来のローディング）
+  const isActuallyLoading = isLoading || mutationLoading;
+
   return (
     <div className="flex flex-col h-full bg-gray-50">
+      {/* GraphQLエラー表示 */}
+      {mutationError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 text-sm">
+          <strong>接続エラー:</strong> {mutationError.message}
+        </div>
+      )}
+
       {/* メッセージ表示エリア */}
       <div
         ref={scrollContainerRef}
@@ -126,6 +177,11 @@ export default function ChatWindow({
             <div className="text-center">
               <div className="text-lg font-medium mb-2">QRAIへようこそ</div>
               <div>質問を入力して、AI との会話を始めましょう</div>
+              {sessionId && (
+                <div className="text-xs text-gray-400 mt-2">
+                  セッション: {sessionId.slice(0, 8)}...
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -143,7 +199,7 @@ export default function ChatWindow({
         )}
 
         {/* ローディング状態 */}
-        {isLoading && <LoadingMessage />}
+        {isActuallyLoading && <LoadingMessage />}
 
         {/* 自動スクロール用のマーカー */}
         <div ref={messagesEndRef} />
@@ -152,7 +208,7 @@ export default function ChatWindow({
       {/* 入力フォーム */}
       <InputForm
         onSubmit={handleSendMessage}
-        isLoading={isLoading}
+        isLoading={isActuallyLoading}
         placeholder="質問を入力してください..."
         maxLength={1000}
       />
