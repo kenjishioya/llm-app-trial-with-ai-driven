@@ -1,19 +1,9 @@
 """
-依存注入設定
+依存性注入
 """
 
-from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import AsyncSession
-from models import AsyncSessionLocal
+from database import get_db
 
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """データベースセッション取得"""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+# データベースセッション依存性注入
+# FastAPI router で使用: Depends(get_db)
+__all__ = ["get_db"]
