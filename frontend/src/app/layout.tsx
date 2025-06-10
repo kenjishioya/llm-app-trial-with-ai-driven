@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import ApolloProvider from "@/components/providers/ApolloProvider";
+import { SessionProvider } from "@/components/providers/SessionProvider";
+import AppLayout from "@/components/layout/AppLayout";
 import "./globals.css";
 
 const inter = Inter({
@@ -30,7 +32,11 @@ export default function RootLayout({
   return (
     <html lang="ja" className={inter.variable}>
       <body className="min-h-screen bg-background font-sans antialiased">
-        <ApolloProvider>{children}</ApolloProvider>
+        <ApolloProvider>
+          <SessionProvider>
+            <AppLayout>{children}</AppLayout>
+          </SessionProvider>
+        </ApolloProvider>
       </body>
     </html>
   );

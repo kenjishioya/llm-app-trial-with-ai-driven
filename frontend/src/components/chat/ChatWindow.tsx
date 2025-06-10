@@ -41,8 +41,7 @@ export default function ChatWindow({
   // GraphQL ask mutation フック
   const [askMutation, { loading: mutationLoading, error: mutationError }] =
     useAskMutation({
-      onCompleted: (data) => {
-        console.log("Ask mutation completed:", data);
+      onCompleted: () => {
         // ストリーミング開始の処理はここで行う予定
       },
       onError: (error) => {
@@ -94,11 +93,9 @@ export default function ChatWindow({
         deepResearch: false, // 通常のチャットではfalse
       };
 
-      const result = await askMutation({
+      await askMutation({
         variables: { input: askInput },
       });
-
-      console.log("Ask mutation result:", result);
 
       // 外部コールバック実行（従来のローディング）
       if (onMessageSend) {

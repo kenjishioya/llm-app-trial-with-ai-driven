@@ -7,6 +7,7 @@ import {
   SessionInput,
   SessionType,
 } from "@/generated/graphql";
+import { Reference } from "@apollo/client";
 
 interface UseChatSessionProps {
   /** セッション一覧を自動取得するか */
@@ -51,11 +52,10 @@ export function useChatSession({
     data: sessionsData,
     loading: sessionsLoading,
     error: sessionsError,
-    refetch: refetchSessions,
   } = useGetSessionsQuery({
     variables: { includeMessages },
     skip: !autoFetch,
-    fetchPolicy: "cache-and-network",
+    fetchPolicy: "cache-first",
     errorPolicy: "all",
   });
 
@@ -74,27 +74,48 @@ export function useChatSession({
   const [createSessionMutation, { loading: isCreating }] =
     useCreateSessionMutation({
       onCompleted: (data) => {
-        console.log("セッション作成完了:", data.createSession);
-        // セッション一覧を再取得
-        refetchSessions();
         // 作成したセッションを選択
         setCurrentSessionId(data.createSession.id);
       },
       onError: (error) => {
         console.error("セッション作成エラー:", error);
       },
+      // キャッシュを自動更新
+      update(cache, { data }) {
+        if (data?.createSession) {
+          const newSession = data.createSession;
+          cache.modify({
+            fields: {
+              sessions(existingSessions = []) {
+                return [newSession, ...existingSessions];
+              },
+            },
+          });
+        }
+      },
     });
 
   // セッション削除mutation
   const [deleteSessionMutation, { loading: isDeleting }] =
     useDeleteSessionMutation({
-      onCompleted: (data) => {
-        console.log("セッション削除完了:", data.deleteSession);
-        // セッション一覧を再取得
-        refetchSessions();
-      },
+      onCompleted: () => {},
       onError: (error) => {
         console.error("セッション削除エラー:", error);
+      },
+      // キャッシュから削除
+      update(cache, { data }, { variables }) {
+        if (data?.deleteSession && variables?.id) {
+          cache.modify({
+            fields: {
+              sessions(existingSessions = [], { readField }) {
+                return existingSessions.filter(
+                  (sessionRef: Reference) =>
+                    readField("id", sessionRef) !== variables.id,
+                );
+              },
+            },
+          });
+        }
       },
     });
 
@@ -102,6 +123,11 @@ export function useChatSession({
   const createSession = async (
     title?: string,
   ): Promise<SessionType | undefined> => {
+    // 既に作成中の場合は処理を中断
+    if (isCreating) {
+      return undefined;
+    }
+
     try {
       const input: SessionInput = {
         title: title || `新しいセッション ${new Date().toLocaleString()}`,

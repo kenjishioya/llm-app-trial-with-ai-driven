@@ -1,22 +1,19 @@
 import React from "react";
 import Link from "next/link";
-import Header from "@/components/layout/Header";
 
 export default function HomePage() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-
+    <div className="flex min-h-full flex-col bg-white">
       <main className="flex-1">
-        <div className="container px-4 py-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
+        <div className="px-6 py-12 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
               QRAI
             </h1>
-            <p className="mt-6 text-lg leading-8 text-muted-foreground">
+            <p className="mt-6 text-xl leading-8 text-gray-600">
               AI-Powered Research Assistant
             </p>
-            <p className="mt-4 text-base text-muted-foreground">
+            <p className="mt-4 text-lg text-gray-600">
               QRAIは最新のAI技術を活用したリサーチアシスタントです。
               質問に対してRAGと深度調査で正確な回答を提供します。
             </p>
@@ -24,13 +21,13 @@ export default function HomePage() {
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link
                 href="/chat"
-                className="rounded-md bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="rounded-md bg-gray-900 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-800"
               >
                 チャットを開始
               </Link>
               <a
                 href="#features"
-                className="text-sm font-semibold leading-6 text-foreground"
+                className="text-sm font-semibold leading-6 text-gray-900"
               >
                 機能について <span aria-hidden="true">→</span>
               </a>
@@ -38,12 +35,12 @@ export default function HomePage() {
           </div>
 
           {/* 機能紹介セクション */}
-          <div id="features" className="mx-auto mt-16 max-w-4xl">
+          <div id="features" className="mx-auto mt-20 max-w-5xl">
             <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="text-center">
-                <div className="mx-auto h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="text-center p-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div className="mx-auto h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
                   <svg
-                    className="h-6 w-6 text-primary"
+                    className="h-6 w-6 text-blue-600"
                     fill="none"
                     viewBox="0 0 24 24"
                     strokeWidth="1.5"
@@ -52,20 +49,22 @@ export default function HomePage() {
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189 6.01 6.01 0 01-.75-1.061"
+                      d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"
                     />
                   </svg>
                 </div>
-                <h3 className="mt-4 text-lg font-medium">RAG検索</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h3 className="mt-4 text-lg font-semibold text-gray-900">
+                  RAG検索
+                </h3>
+                <p className="mt-2 text-sm text-gray-600">
                   知識ベースを活用した高精度な情報検索と回答生成
                 </p>
               </div>
 
-              <div className="text-center">
-                <div className="mx-auto h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="text-center p-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div className="mx-auto h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
                   <svg
-                    className="h-6 w-6 text-primary"
+                    className="h-6 w-6 text-green-600"
                     fill="none"
                     viewBox="0 0 24 24"
                     strokeWidth="1.5"
@@ -78,16 +77,18 @@ export default function HomePage() {
                     />
                   </svg>
                 </div>
-                <h3 className="mt-4 text-lg font-medium">深度調査</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h3 className="mt-4 text-lg font-semibold text-gray-900">
+                  深度調査
+                </h3>
+                <p className="mt-2 text-sm text-gray-600">
                   複数ソースを活用した詳細なリサーチと分析
                 </p>
               </div>
 
-              <div className="text-center">
-                <div className="mx-auto h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="text-center p-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div className="mx-auto h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
                   <svg
-                    className="h-6 w-6 text-primary"
+                    className="h-6 w-6 text-purple-600"
                     fill="none"
                     viewBox="0 0 24 24"
                     strokeWidth="1.5"
@@ -100,8 +101,10 @@ export default function HomePage() {
                     />
                   </svg>
                 </div>
-                <h3 className="mt-4 text-lg font-medium">ストリーミング</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h3 className="mt-4 text-lg font-semibold text-gray-900">
+                  ストリーミング
+                </h3>
+                <p className="mt-2 text-sm text-gray-600">
                   リアルタイムで段階的に回答を表示
                 </p>
               </div>

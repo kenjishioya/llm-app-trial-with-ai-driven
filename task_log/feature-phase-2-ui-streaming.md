@@ -167,6 +167,40 @@
 - **✅ 実行結果**: ステート管理、自動スクロール、デモ応答、エラーハンドリング、チャットページ統合完了
 - **✅ 完了日時**: 2024-06-10
 
+### Phase 2-2C: サイドバー実装（UIレイアウト改善）
+#### 優先度: 🔴 最高
+
+**Task 2-2C-1: サイドバーコンポーネント作成**
+- [ ] `src/components/layout/Sidebar.tsx` 作成
+- [ ] セッション履歴表示
+- [ ] 新規チャット作成ボタン
+- [ ] サイドバー開閉状態管理
+- [ ] QRAIロゴ統合
+- **完了条件**: サイドバー表示、セッション履歴表示
+- **所要時間**: 30分
+- **🔄 コミット**: `feat(frontend): create sidebar component with session history`
+
+**Task 2-2C-2: サイドバートグル機能**
+- [ ] `src/components/layout/SidebarToggle.tsx` 作成
+- [ ] ハンバーガーメニューアイコン
+- [ ] サイドバー開閉アニメーション
+- [ ] レスポンシブ対応（モバイルで自動非表示）
+- [ ] トグルボタンをサイドバー内に統合
+- **完了条件**: スムーズな開閉アニメーション
+- **所要時間**: 20分
+- **🔄 コミット**: `feat(frontend): add sidebar toggle with animations`
+
+**Task 2-2C-3: レイアウト統合・調整**
+- [ ] `src/components/layout/AppLayout.tsx` 作成
+- [ ] `src/app/layout.tsx` にAppLayout統合
+- [ ] チャット画面のレイアウト調整
+- [ ] サイドバー開閉時のコンテンツ幅調整
+- [ ] ホームページ対応
+- [ ] 初回セッション重複問題修正
+- **完了条件**: バランス良いレイアウト、レスポンシブ動作
+- **所要時間**: 35分
+- **🔄 コミット**: `feat(frontend): integrate sidebar into main layout`
+
 ### Phase 2-3A: GraphQL統合実装
 #### 優先度: 🟡 高
 
