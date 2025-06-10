@@ -5,27 +5,27 @@ PostgreSQL対応・接続プール最適化・ヘルスチェック機能付き
 
 import logging
 import os
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import NullPool, StaticPool
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator, Dict
 
-from config import Settings
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    create_async_engine,
+    async_sessionmaker,
+)
+from sqlalchemy.pool import StaticPool
 
 logger = logging.getLogger(__name__)
 
-# 設定取得
-settings = Settings()
 
-
-def get_database_config():
+def get_database_config() -> Dict[str, Any]:
     """環境に応じたデータベース設定を取得"""
-    database_url = settings.database_url
-    environment = settings.environment
+    database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./app.db")
+    environment = os.getenv("ENVIRONMENT", "development")
 
     # 接続プール設定
     if database_url.startswith("postgresql"):
         # PostgreSQL: 非同期エンジン用設定
-        pool_config = {
+        pool_config: Dict[str, Any] = {
             "pool_size": 10,  # 基本接続数
             "max_overflow": 20,  # 追加接続数
             "pool_timeout": 30,  # 接続取得タイムアウト
@@ -34,7 +34,7 @@ def get_database_config():
         }
 
         # 接続引数
-        connect_args = {
+        connect_args: Dict[str, Any] = {
             "server_settings": {
                 "jit": "off",  # JIT無効化（安定性向上）
                 "timezone": "Asia/Tokyo",
@@ -99,7 +99,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-async def check_database_health() -> dict:
+async def check_database_health() -> Dict[str, Any]:
     """データベース接続ヘルスチェック"""
     try:
         async with engine.begin() as conn:
@@ -137,7 +137,7 @@ async def check_database_health() -> dict:
         }
 
 
-async def close_database():
+async def close_database() -> None:
     """データベース接続クローズ（アプリケーション終了時）"""
     try:
         await engine.dispose()

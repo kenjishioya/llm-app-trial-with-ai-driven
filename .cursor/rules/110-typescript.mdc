@@ -1,5 +1,5 @@
 ---
-description: 
+description:
 globs: **/*.ts,**/*.tsx
 alwaysApply: false
 ---
@@ -16,77 +16,77 @@ globs:
 
 > TypeScript/JavaScript ファイルに対して自動適用されるルールです。
 > AI生成コードや手動編集時に以下項目を遵守してください。
-> 詳細な背景や長文ガイドは `@Docs docs/architecture/component_frontend.md` などを参照してください。  
-> 違反があれば AI は再生成するか修正し、最終的に遵守された状態で出力してください。  
+> 詳細な背景や長文ガイドは `@Docs docs/architecture/component_frontend.md` などを参照してください。
+> 違反があれば AI は再生成するか修正し、最終的に遵守された状態で出力してください。
 
 ## 1. フォーマッタ & Linter
-- **Prettier を必須**  
-  - `prettier --write` で常にコードを整形すること。CIでは `prettier --check` を実行し違反があればエラーとする。  
+- **Prettier を必須**
+  - `prettier --write` で常にコードを整形すること。CIでは `prettier --check` を実行し違反があればエラーとする。
   - 設定例: `singleQuote: true`, `trailingComma: 'all'`, `tabWidth: 2` などを `.prettierrc` に明示。
-- **ESLint AirBnB 構成**  
-  - `eslint --config .eslintrc.cjs --ext .ts,.tsx` を CI で実行し、エラーは必ず修正する。  
-  - React/Next.js プロジェクトでは `eslint-plugin-react`, `@typescript-eslint`, `eslint-plugin-import` を組み合わせ、**import/order** ルールを適用。 
-- **import ソート**  
-  - `eslint-plugin-simple-import-sort` を使用し、**アルファベット昇順 + カテゴリ別（外部 → 内部 → 相対）** の順序を強制することで可読性を向上させる。 
+- **ESLint AirBnB 構成**
+  - `eslint --config .eslintrc.cjs --ext .ts,.tsx` を CI で実行し、エラーは必ず修正する。
+  - React/Next.js プロジェクトでは `eslint-plugin-react`, `@typescript-eslint`, `eslint-plugin-import` を組み合わせ、**import/order** ルールを適用。
+- **import ソート**
+  - `eslint-plugin-simple-import-sort` を使用し、**アルファベット昇順 + カテゴリ別（外部 → 内部 → 相対）** の順序を強制することで可読性を向上させる。
 
 ## 2. TypeScript 設定 & 型安全
-- **`tsconfig.json` は厳格モード**  
-  - `strict: true`, `noImplicitAny: true`, `strictNullChecks: true` を必ず有効化。  
-  - `skipLibCheck: true` は例外的に許容可だが、基本はオフで型チェックを強化する。  
-- **型注釈を徹底**  
-  - すべての関数、props、state にインライン型またはインターフェイスで型を付与する。  
-  - `any` の乱用は厳禁。どうしても必要な場合は `// eslint-disable-next-line @typescript-eslint/no-explicit-any` コメントを付加し、理由を明示する。  
-- **React Hooks と JSX**  
-  - **Props インターフェイスは先頭に `I` を付けず、PascalCase で命名**（例: `UserProfileProps`）。  
-  - **コンポーネント名は PascalCase**、**ファイル名は kebab-case または PascalCase** で統一する（プロジェクト規約に合わせる）。  
+- **`tsconfig.json` は厳格モード**
+  - `strict: true`, `noImplicitAny: true`, `strictNullChecks: true` を必ず有効化。
+  - `skipLibCheck: true` は例外的に許容可だが、基本はオフで型チェックを強化する。
+- **型注釈を徹底**
+  - すべての関数、props、state にインライン型またはインターフェイスで型を付与する。
+  - `any` の乱用は厳禁。どうしても必要な場合は `// eslint-disable-next-line @typescript-eslint/no-explicit-any` コメントを付加し、理由を明示する。
+- **React Hooks と JSX**
+  - **Props インターフェイスは先頭に `I` を付けず、PascalCase で命名**（例: `UserProfileProps`）。
+  - **コンポーネント名は PascalCase**、**ファイル名は kebab-case または PascalCase** で統一する（プロジェクト規約に合わせる）。
 
 ## 3. Next.js 14 & shadcn/ui 運用
-- **App Router 構造準拠**  
-  - `app/` 配下のページは **`page.tsx` と `layout.tsx`** のみ設置し、ファイルベースルーティングに従う。  
-  - `use client` / `use server` ディレクティブを必要最小限に使い分け、**サーバコンポーネントをデフォルト**で使用する。  
-- **shadcn/ui コンポーネント**  
-  - `components/ui/` 以下に `npx shadcn-ui@latest add button card dialog` 等で生成したコンポーネントを配置し、それらを再利用する。  
-  - 直接 `className` で Tailwind ユーティリティを組み合わせつつ、shadcn の `cn()` ヘルパーを使って条件付きクラスを付与すること。  
-  - **カスタムテーマ**を `tailwind.config.ts` の `extend.colors` にて定義し、ブランドカラーパレットを一元管理する。  
+- **App Router 構造準拠**
+  - `app/` 配下のページは **`page.tsx` と `layout.tsx`** のみ設置し、ファイルベースルーティングに従う。
+  - `use client` / `use server` ディレクティブを必要最小限に使い分け、**サーバコンポーネントをデフォルト**で使用する。
+- **shadcn/ui コンポーネント**
+  - `components/ui/` 以下に `npx shadcn-ui@latest add button card dialog` 等で生成したコンポーネントを配置し、それらを再利用する。
+  - 直接 `className` で Tailwind ユーティリティを組み合わせつつ、shadcn の `cn()` ヘルパーを使って条件付きクラスを付与すること。
+  - **カスタムテーマ**を `tailwind.config.ts` の `extend.colors` にて定義し、ブランドカラーパレットを一元管理する。
 
 ## 4. コードスタイル & 構文
-- **行長は 100 文字以内**を推奨（Prettier 既定の 80 以上でも可）。  
-- **セミコロンは省略可**だが、チーム内で統一する。AirBnB ではセミコロン必須。  
-- **コールバック関数の型は省略せず宣言**（例: `(e: React.ChangeEvent<HTMLInputElement>) => void`）。  
-- **Optional Chaining や Nullish Coalescing演算子**（`?.`, `??`）を活用し、冗長な `if` 文を減らす。  
-- **定数・ユーティリティ関数**は `src/utils/` など専用フォルダに置き、再利用性を高める。  
+- **行長は 100 文字以内**を推奨（Prettier 既定の 80 以上でも可）。
+- **セミコロンは省略可**だが、チーム内で統一する。AirBnB ではセミコロン必須。
+- **コールバック関数の型は省略せず宣言**（例: `(e: React.ChangeEvent<HTMLInputElement>) => void`）。
+- **Optional Chaining や Nullish Coalescing演算子**（`?.`, `??`）を活用し、冗長な `if` 文を減らす。
+- **定数・ユーティリティ関数**は `src/utils/` など専用フォルダに置き、再利用性を高める。
 
 ## 5. セキュリティ & 静的検査
-- **環境変数の直接参照**は `process.env.VAR_NAME` のみとし、**`.env`内容は出力しない**。  
-- **XSS・CSRF 対策**  
-  - `dangerouslySetInnerHTML` の使用は極力避ける。使用する場合は必ず角括弧でエスケープされた文字列を渡す。  
-  - `next.config.js` で `contentSecurityPolicy` を設定し、許可されたドメインのみ許可する。  
-- **HTTP/HTTPS**  
-  - `fetch` では常に `https://` を使う。**`http://`は禁止**。  
-  - Next.js API Route (`/api/*`) においても、必ずサーバサイドバリデーションを行い不正アクセスを防ぐ。  
-- **型検査による DB/API 呼び出し保護**  
-  - `zod` や `io-ts` などのランタイムスキーマを使い、外部入力を厳格に型チェックする。  
-  - 生成された型定義を直接 `react-hook-form` などに組み合わせ、**入力バリデーションを一元化**することでインジェクション攻撃を防ぐ。  
+- **環境変数の直接参照**は `process.env.VAR_NAME` のみとし、**`.env`内容は出力しない**。
+- **XSS・CSRF 対策**
+  - `dangerouslySetInnerHTML` の使用は極力避ける。使用する場合は必ず角括弧でエスケープされた文字列を渡す。
+  - `next.config.js` で `contentSecurityPolicy` を設定し、許可されたドメインのみ許可する。
+- **HTTP/HTTPS**
+  - `fetch` では常に `https://` を使う。**`http://`は禁止**。
+  - Next.js API Route (`/api/*`) においても、必ずサーバサイドバリデーションを行い不正アクセスを防ぐ。
+- **型検査による DB/API 呼び出し保護**
+  - `zod` や `io-ts` などのランタイムスキーマを使い、外部入力を厳格に型チェックする。
+  - 生成された型定義を直接 `react-hook-form` などに組み合わせ、**入力バリデーションを一元化**することでインジェクション攻撃を防ぐ。
 
 ## 6. テスト & CI 統合
-- **ユニットテスト**  
-  - **Vitest + React Testing Library** を導入し、コンポーネントのレンダリング・イベントハンドリングを検証する。  
-  - テストファイルは同じディレクトリに `*.test.tsx` と命名する。  
-- **E2E テスト**  
-  - **Playwright** を使い、`/chat` ページでのメッセージ送信 → ストリーミング表示を確認する。  
-  - モックサーバを使い、バックエンドが不安定な場合でもテストが通るように設計する。  
-- **Coverage**  
-  - **70 % 以上** を目標とする。CI で `vitest run --coverage` を実行し、閾値未満なら失敗。  
+- **ユニットテスト**
+  - **Vitest + React Testing Library** を導入し、コンポーネントのレンダリング・イベントハンドリングを検証する。
+  - テストファイルは同じディレクトリに `*.test.tsx` と命名する。
+- **E2E テスト**
+  - **Playwright** を使い、`/chat` ページでのメッセージ送信 → ストリーミング表示を確認する。
+  - モックサーバを使い、バックエンドが不安定な場合でもテストが通るように設計する。
+- **Coverage**
+  - **70 % 以上** を目標とする。CI で `vitest run --coverage` を実行し、閾値未満なら失敗。
 - 詳細: @Docs docs/architecture/component_frontend.md#テスト
 
 ## 7. 依存管理
-- **npm/yarn/pnpm** いずれかを統一して使用し、`package.json` に `engines` フィールドで Node.js バージョンを明示する。  
-- **依存の追加時は `pnpm add <pkg> --save-exact`** を推奨し、意図しないメジャーバージョンアップを防ぐ。  
-- 定期的に `npm audit` / `pnpm audit` を実行し、**脆弱性がクリティカル以上**であれば即対応する。  
+- **npm/yarn/pnpm** いずれかを統一して使用し、`package.json` に `engines` フィールドで Node.js バージョンを明示する。
+- **依存の追加時は `pnpm add <pkg> --save-exact`** を推奨し、意図しないメジャーバージョンアップを防ぐ。
+- 定期的に `npm audit` / `pnpm audit` を実行し、**脆弱性がクリティカル以上**であれば即対応する。
 
 ## 8. プロンプト / AI 生成制御
-- **不要な ESLint disable コメント**（例: `// eslint-disable-next-line`）を多用しない。AIlは自動で修正提案を行う。  
-- **ファイルの大幅リファクタ**を行う際は、**段階的に小さなコミット**を作成し、AIに負荷をかけすぎないようにする。  
-- AIがルールに違反した場合は**再生成**し、まだ修正できない場合は**謝罪して停止**すること。  
+- **不要な ESLint disable コメント**（例: `// eslint-disable-next-line`）を多用しない。AIlは自動で修正提案を行う。
+- **ファイルの大幅リファクタ**を行う際は、**段階的に小さなコミット**を作成し、AIに負荷をかけすぎないようにする。
+- AIがルールに違反した場合は**再生成**し、まだ修正できない場合は**謝罪して停止**すること。
 
 ---

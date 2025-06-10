@@ -24,13 +24,14 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 
 # 動的にモデルをインポート
-import sys
+# 直接インポートで循環参照を回避
+try:
+    from models import Base
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
-
-from models import Base
-
-target_metadata = Base.metadata
+    target_metadata = Base.metadata
+except ImportError:
+    # フォールバック: target_metadataをNoneに設定
+    target_metadata = None
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

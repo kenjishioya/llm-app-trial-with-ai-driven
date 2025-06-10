@@ -1,5 +1,5 @@
 ---
-description: 
+description:
 globs: backend/**/*.py
 alwaysApply: false
 ---
@@ -14,120 +14,120 @@ globs:
 
 # 📡 Backend GraphQL ルール
 
-> FastAPI + Strawberry GraphQL を用いたバックエンド実装に自動適用されるルールです。  
-> AI 生成コードや手動編集時に、以下の項目を遵守してください。  
-> 違反があれば AI は出力を再生成または修正し、最終的に遵守された状態で出力してください。  
+> FastAPI + Strawberry GraphQL を用いたバックエンド実装に自動適用されるルールです。
+> AI 生成コードや手動編集時に、以下の項目を遵守してください。
+> 違反があれば AI は出力を再生成または修正し、最終的に遵守された状態で出力してください。
 > 詳細な背景や長文ガイドは `@Docs docs/architecture/component_api.md` を参照してください。
 
 ## 1. スキーマ & Resolver 命名規約
-- **ファイル構成**  
-  - スキーマ定義 (`*.graphql` または `schema.py`) とリゾルバ実装 (`resolvers/*.py`) は分離する。  
-  - 例: `backend/api/graphql_schema.py` に型定義、`backend/api/resolvers/` に関数実装を置く。  
-- **Query / Mutation / Subscription 名称**  
-  - クエリ名・ミューテーション名・サブスクリプション名は **キャメルケース**（例: `getSessions`, `askQuestion`, `streamAnswer`）。  
-  - 引数やペイロードの型は **PascalCase**（例: `AskInput`, `AskPayload`）。  
-- **Resolver 関数名**  
-  - `async def resolve_<camelCaseName>(...)` ではなく、**関数名そのものをクエリ／ミューテーションと同一**にする（例: `async def getSessions(...)`）。  
-  - ファイルと関数の対応は「1クエリ＝1関数」とする。複数 Query を 1 ファイルの中で定義するのは避ける。  
+- **ファイル構成**
+  - スキーマ定義 (`*.graphql` または `schema.py`) とリゾルバ実装 (`resolvers/*.py`) は分離する。
+  - 例: `backend/api/graphql_schema.py` に型定義、`backend/api/resolvers/` に関数実装を置く。
+- **Query / Mutation / Subscription 名称**
+  - クエリ名・ミューテーション名・サブスクリプション名は **キャメルケース**（例: `getSessions`, `askQuestion`, `streamAnswer`）。
+  - 引数やペイロードの型は **PascalCase**（例: `AskInput`, `AskPayload`）。
+- **Resolver 関数名**
+  - `async def resolve_<camelCaseName>(...)` ではなく、**関数名そのものをクエリ／ミューテーションと同一**にする（例: `async def getSessions(...)`）。
+  - ファイルと関数の対応は「1クエリ＝1関数」とする。複数 Query を 1 ファイルの中で定義するのは避ける。
 - 詳細: @Docs docs/architecture/component_api.md#GraphQL-Resolver-ポリシー
 
 ## 2. 型定義と Pydantic モデル
-- **入力バリデーション** は必ず Pydantic モデルを使用し、GraphQL の入力型と整合させる。  
-  - 例:  
+- **入力バリデーション** は必ず Pydantic モデルを使用し、GraphQL の入力型と整合させる。
+  - 例:
     ```python
     class AskInput(BaseModel):
         question: str
         deep_research: bool = False
-    ```  
-  - Strawberry 側で `@strawberry.input` を使う場合でも、Pydantic モデルをラップしていることを明示する。  
-- **出力型** も Pydantic ではなく Strawberry 型 (`@strawberry.type`) で定義し、必要に応じて Pydantic から変換して返す。  
-- **共通入力型やエンティティ型** は `backend/api/types/` フォルダにまとめて、**再利用可能な設定**とする。  
+    ```
+  - Strawberry 側で `@strawberry.input` を使う場合でも、Pydantic モデルをラップしていることを明示する。
+- **出力型** も Pydantic ではなく Strawberry 型 (`@strawberry.type`) で定義し、必要に応じて Pydantic から変換して返す。
+- **共通入力型やエンティティ型** は `backend/api/types/` フォルダにまとめて、**再利用可能な設定**とする。
 - 詳細: @Docs docs/architecture/component_api.md#依存注入
 
 ## 3. ストリーミング実装 (Subscription / SSE)
-- **Strawberry の `@strawberry.subscription`** を使い、`AsyncGenerator` を返却する形式で Streaming を実装する。  
-  - 例:  
+- **Strawberry の `@strawberry.subscription`** を使い、`AsyncGenerator` を返却する形式で Streaming を実装する。
+  - 例:
     ```python
     @strawberry.subscription
     async def streamAnswer(message_id: strawberry.ID) -> AsyncGenerator[str, None]:
         async for chunk in RagService.stream(message_id):
             yield chunk
-    ```  
-- **HTTP SSE** を利用する場合、GraphQL over SSE (`graphql-sse`) プロトコルを用いる。`/graphql/stream` エンドポイントを分けて定義し、CORS 設定で `text/event-stream` のヘッダを許可する。  
-- **接続管理**  
-  - `AbortController` 相当でサーバ側のキャンセルを検知し、`yield` を停止できるようにする。  
-  - エラー発生時はストリームをクローズし、必要なエラーメッセージ（例: `{ "error": "InternalServerError" }`）を送信する。  
+    ```
+- **HTTP SSE** を利用する場合、GraphQL over SSE (`graphql-sse`) プロトコルを用いる。`/graphql/stream` エンドポイントを分けて定義し、CORS 設定で `text/event-stream` のヘッダを許可する。
+- **接続管理**
+  - `AbortController` 相当でサーバ側のキャンセルを検知し、`yield` を停止できるようにする。
+  - エラー発生時はストリームをクローズし、必要なエラーメッセージ（例: `{ "error": "InternalServerError" }`）を送信する。
 - 詳細: @Docs docs/architecture/component_api.md#GraphQL-Streaming
 
 ## 4. ミドルウェア & 認証・認可
-- **CORS 設定**  
-  - FastAPI の `CORSMiddleware` を使い、`https://<static-app>.azurestaticapps.net` のみ許可。  
-  - Token ベース認証時は `allow_headers=["Authorization"]` に追加し、`allow_methods=["GET","POST"]` を最低限設定。  
-- **認証**  
-  - `AuthMiddleware` を実装し、**Azure AD OIDC トークン**を検証する。IDトークンから `user_id` を抽出し、GraphQL コンテキストに詰める。  
-  - **匿名アクセス**は許可するが、`user_id` が必要なクエリ（履歴取得など）は内部でガードし、未認証なら空配列やエラーコードを返す。  
-- **Rate Limit**  
-  - `slowapi` を用いて **20 req/min/IP** をデフォルトで適用。Free Tier では 429 を返し、`Retry-After` ヘッダを追加する。  
-  - ミドルウェアの順序は: `Logging → TrustedHost → CORS → Auth → RateLimit → GraphQL` とする。  
+- **CORS 設定**
+  - FastAPI の `CORSMiddleware` を使い、`https://<static-app>.azurestaticapps.net` のみ許可。
+  - Token ベース認証時は `allow_headers=["Authorization"]` に追加し、`allow_methods=["GET","POST"]` を最低限設定。
+- **認証**
+  - `AuthMiddleware` を実装し、**Azure AD OIDC トークン**を検証する。IDトークンから `user_id` を抽出し、GraphQL コンテキストに詰める。
+  - **匿名アクセス**は許可するが、`user_id` が必要なクエリ（履歴取得など）は内部でガードし、未認証なら空配列やエラーコードを返す。
+- **Rate Limit**
+  - `slowapi` を用いて **20 req/min/IP** をデフォルトで適用。Free Tier では 429 を返し、`Retry-After` ヘッダを追加する。
+  - ミドルウェアの順序は: `Logging → TrustedHost → CORS → Auth → RateLimit → GraphQL` とする。
 - 詳細: @Docs docs/architecture/component_api.md#ミドルウェア-スタック
 
 ## 5. エラーハンドリング
-- **GraphQL エラー形式**  
-  - HTTP ステータスは常に 200。エラーメッセージは `{"errors":[{"message":"...","extensions":{"code":"...","field":"..."}}]}` 形式で返す。  
-  - クライアントに詳細を渡したくない場合は、`"InternalServerError"` のみを返し、詳細はサーバログに残す。  
-- **例外ハンドリング**  
-  - `AiSearchRateLimitError` → 429 応答の GraphQL error 拡張で `code: "SEARCH_RATELIMIT"` を付与。  
-  - `OpenAIError` → 502 に見せつつ、GraphQL error 内に `code: "OPENAI_ERROR"` を埋め込む。  
-  - Pydantic のバリデーションエラー → 400 相当にマップし、`"BAD_USER_INPUT"` コードで返す。  
-- **ミドルウェア層でのキャッチ**  
-  - FastAPI の `exception_handler` で CatchAll を設定し、上記エラーを適切な GraphQL style に変換する。  
+- **GraphQL エラー形式**
+  - HTTP ステータスは常に 200。エラーメッセージは `{"errors":[{"message":"...","extensions":{"code":"...","field":"..."}}]}` 形式で返す。
+  - クライアントに詳細を渡したくない場合は、`"InternalServerError"` のみを返し、詳細はサーバログに残す。
+- **例外ハンドリング**
+  - `AiSearchRateLimitError` → 429 応答の GraphQL error 拡張で `code: "SEARCH_RATELIMIT"` を付与。
+  - `OpenAIError` → 502 に見せつつ、GraphQL error 内に `code: "OPENAI_ERROR"` を埋め込む。
+  - Pydantic のバリデーションエラー → 400 相当にマップし、`"BAD_USER_INPUT"` コードで返す。
+- **ミドルウェア層でのキャッチ**
+  - FastAPI の `exception_handler` で CatchAll を設定し、上記エラーを適切な GraphQL style に変換する。
 - 詳細: @Docs docs/architecture/component_api.md#エラーハンドリング
 
 ## 6. パフォーマンス & キャッシュ
-- **非同期 I/O**  
-  - `httpx.AsyncClient` を使い、外部呼び出しをノンブロッキングにする。`timeout=30` や `pool_limits={"max_connections": 10}` など適切に設定する。  
-- **LRU キャッシュ**  
-  - `functools.lru_cache(maxsize=256)` を使い、**Embedding ベクトルや定数データ**はメモリ内キャッシュを適用する。  
-  - 長期的には Redis など外部キャッシュを検討する。  
-- **DB クエリ最適化**  
-  - SQLAlchemy を使う場合、`selectinload` や `joinedload` で必要なリレーションをprefetchし、N+1 クエリを防ぐ。  
-  - 大量データ取得はページネーションを必須とし、`limit`/`offset` を必ず使う。  
-- **GraphQL バッチロード**  
-  - DataLoader パターン (`aiographql-dataloader`) を導入し、**同一リクエスト内の同テーブル複数クエリをまとめる**。  
+- **非同期 I/O**
+  - `httpx.AsyncClient` を使い、外部呼び出しをノンブロッキングにする。`timeout=30` や `pool_limits={"max_connections": 10}` など適切に設定する。
+- **LRU キャッシュ**
+  - `functools.lru_cache(maxsize=256)` を使い、**Embedding ベクトルや定数データ**はメモリ内キャッシュを適用する。
+  - 長期的には Redis など外部キャッシュを検討する。
+- **DB クエリ最適化**
+  - SQLAlchemy を使う場合、`selectinload` や `joinedload` で必要なリレーションをprefetchし、N+1 クエリを防ぐ。
+  - 大量データ取得はページネーションを必須とし、`limit`/`offset` を必ず使う。
+- **GraphQL バッチロード**
+  - DataLoader パターン (`aiographql-dataloader`) を導入し、**同一リクエスト内の同テーブル複数クエリをまとめる**。
 - 詳細: @Docs docs/architecture/component_api.md#パフォーマンス-指針
 
 ## 7. テスト & CI 統合
-- **ユニットテスト**  
-  - `pytest` + `strawberry.test.Client` を使い、GraphQL リゾルバ単体とエンドツーエンド両方をカバーする。  
-  - テスト用 DB は `pytest-postgresql` で立ち上げ、テスト開始時に `CREATE TEMP TABLE` → 終了時に DROP を行う。  
-- **統合テスト**  
-  - FastAPI TestClient を用いて `/graphql` POST リクエストが期待通りの JSON フォーマットを返すか検証する。  
-  - エラーシナリオも含め、カバレッジは **80 % 以上** を目指す。  
-- **負荷テスト**  
-  - `Locust AsyncHttpUser` を使い、**20 RPS** 前後のシナリオで p95 レイテンシが **<10s** となるかを確認する。  
+- **ユニットテスト**
+  - `pytest` + `strawberry.test.Client` を使い、GraphQL リゾルバ単体とエンドツーエンド両方をカバーする。
+  - テスト用 DB は `pytest-postgresql` で立ち上げ、テスト開始時に `CREATE TEMP TABLE` → 終了時に DROP を行う。
+- **統合テスト**
+  - FastAPI TestClient を用いて `/graphql` POST リクエストが期待通りの JSON フォーマットを返すか検証する。
+  - エラーシナリオも含め、カバレッジは **80 % 以上** を目指す。
+- **負荷テスト**
+  - `Locust AsyncHttpUser` を使い、**20 RPS** 前後のシナリオで p95 レイテンシが **<10s** となるかを確認する。
 - 詳細: @Docs docs/architecture/component_api.md#テスト戦略
 
 ## 8. 依存関係管理
-- **requirements.txt / pyproject.toml**  
-  - Strawberry や SQLAlchemy、httpx など主要パッケージはバージョンを**厳密固定**（`==`または`~=`）。  
-  - 開発用依存（pytest, ruff, isort, black）は `dev-dependencies` に分け、CI では本番依存と区別してインストールする。  
-- **脆弱性チェック**  
-  - `pip-audit` を毎週実行し、**クリティカル以上の脆弱性**があれば即対応。  
+- **requirements.txt / pyproject.toml**
+  - Strawberry や SQLAlchemy、httpx など主要パッケージはバージョンを**厳密固定**（`==`または`~=`）。
+  - 開発用依存（pytest, ruff, isort, black）は `dev-dependencies` に分け、CI では本番依存と区別してインストールする。
+- **脆弱性チェック**
+  - `pip-audit` を毎週実行し、**クリティカル以上の脆弱性**があれば即対応。
 - 詳細: @Docs docs/architecture/crosscutting.md#コストガードレール
 
 ## 9. ドキュメント & コメント
-- **Resolver 関数には必ず簡潔な英語コメント**を付与し、引数・返却値・副作用を明示する。  
-- **スキーマ定義 (`.graphql`) がある場合は、必ず `@strawberry.description` を使い、クライアント向けドキュメントを自動生成可能な状態にする。  
-- **設計変更時**は `docs/adr/` に ADR を新規追加し、**スキーマやリゾルバを変更した背景を記録**する。  
+- **Resolver 関数には必ず簡潔な英語コメント**を付与し、引数・返却値・副作用を明示する。
+- **スキーマ定義 (`.graphql`) がある場合は、必ず `@strawberry.description` を使い、クライアント向けドキュメントを自動生成可能な状態にする。
+- **設計変更時**は `docs/adr/` に ADR を新規追加し、**スキーマやリゾルバを変更した背景を記録**する。
 - 詳細: @Docs docs/adr/README.md
 
 ## 10. AI生成制御
-- **不要な Resolver の自動生成禁止**  
-  - AI には「必要な Query/Mutation/Subscription のみを生成し、無関係な型やフィールドを追加しない」よう指示する。  
-- **既存コードとのマージ**  
-  - 新規 Resolver や型を生成する場合は、既存ファイルを**上書きせずに新規定義として追加**するように指示する。  
-- **ルール違反時の再生成**  
-  - 上記ルールに反した部分（例: Pydantic モデルを経由せずに直接スキーマ定義するなど）があった場合は再生成し、最終的に遵守されたコードを出力する。  
+- **不要な Resolver の自動生成禁止**
+  - AI には「必要な Query/Mutation/Subscription のみを生成し、無関係な型やフィールドを追加しない」よう指示する。
+- **既存コードとのマージ**
+  - 新規 Resolver や型を生成する場合は、既存ファイルを**上書きせずに新規定義として追加**するように指示する。
+- **ルール違反時の再生成**
+  - 上記ルールに反した部分（例: Pydantic モデルを経由せずに直接スキーマ定義するなど）があった場合は再生成し、最終的に遵守されたコードを出力する。
 - 詳細: @Docs docs/architecture/crosscutting.md#AI-制御
 
 ---

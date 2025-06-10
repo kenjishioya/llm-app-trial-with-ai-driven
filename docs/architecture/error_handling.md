@@ -59,7 +59,7 @@ class RateLimiter:
     def __init__(self, rate: int = 20, burst: int = 5):
         self.rate = rate      # 1分あたり20リクエスト
         self.burst = burst    # バースト許容5リクエスト
-        
+
     async def acquire(self, user_id: str) -> bool:
         if tokens_available(user_id) > 0:
             consume_token(user_id)
@@ -124,10 +124,10 @@ class RobustEventSource {
     this.maxReconnectInterval = 30000; // 最大30秒
     this.reconnectMultiplier = 1.5;
   }
-  
+
   connect() {
     this.eventSource = new EventSource(this.url);
-    
+
     this.eventSource.onerror = () => {
       console.log(`接続エラー。${this.reconnectInterval}ms後に再試行`);
       setTimeout(() => this.connect(), this.reconnectInterval);
@@ -167,7 +167,7 @@ class DatabaseService:
     def __init__(self):
         self.read_only_mode = False
         self.temp_storage = {}  # インメモリ一時保存
-    
+
     async def save_message(self, session_id: str, message: dict):
         if self.read_only_mode:
             # 一時保存
@@ -220,7 +220,7 @@ class DatabaseService:
 // エラー率監視 (過去5分間)
 requests
 | where timestamp > ago(5m)
-| summarize 
+| summarize
     total = count(),
     errors = countif(resultCode >= 400)
 | extend error_rate = (errors * 100.0) / total
@@ -259,4 +259,4 @@ requests
 
 ---
 
-*Last updated: 2025-06-03* 
+*Last updated: 2025-06-03*

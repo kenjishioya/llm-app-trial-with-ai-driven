@@ -133,7 +133,7 @@ query MySessions {
 
 基本的なHTTPステータスコード:
 - **400**: バリデーションエラー
-- **429**: Rate Limit超過  
+- **429**: Rate Limit超過
 - **500**: 内部サーバーエラー
 
 GraphQLエラーレスポンスは [GraphQL over HTTP仕様](https://graphql.org/learn/serving-over-http/) に準拠し、`errors` 配列でエラー詳細を返却します。
