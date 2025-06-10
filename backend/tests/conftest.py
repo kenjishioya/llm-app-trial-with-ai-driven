@@ -36,6 +36,7 @@ _test_sessionmakers = {}
 
 async def create_test_session() -> AsyncSession:
     """独立したテスト用データベースセッションを作成"""
+    # 常に一時SQLiteを使用（CI/ローカル両対応）
     test_db_fd, test_db_path = tempfile.mkstemp(suffix=".db")
     os.close(test_db_fd)
 
@@ -99,7 +100,7 @@ async def db_session():
         if test_id in _test_sessionmakers:
             _test_sessionmakers.pop(test_id)
 
-        # ファイル削除
+        # SQLiteファイル削除
         if os.path.exists(test_db_path):
             os.unlink(test_db_path)
 
