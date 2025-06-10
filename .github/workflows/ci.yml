@@ -103,26 +103,11 @@ jobs:
             backend/bandit-report.json
           retention-days: 30
 
-  # Phase 3: Backend 品質・テスト
+  # Phase 3: Backend 品質・テスト（SQLiteを使用）
   backend-quality:
     name: 🐍 Backend Quality & Testing
     runs-on: ubuntu-latest
     needs: setup-validation
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: test_qrai
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password  # pragma: allowlist secret
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
       - name: Checkout code
@@ -148,23 +133,31 @@ jobs:
 
       - name: Run unit tests
         env:
-          DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_qrai  # pragma: allowlist secret
+          DATABASE_URL: sqlite+aiosqlite:///./test.db
           ENVIRONMENT: test
           PYTHONPATH: /home/runner/work/llm-app-trial-with-ai-driven/llm-app-trial-with-ai-driven/backend
+          OPENROUTER_API_KEY: test_key  # pragma: allowlist secret
+          GOOGLE_AI_API_KEY: test_key  # pragma: allowlist secret
+          JWT_SECRET_KEY: test_jwt_secret_123456789012345678901234  # pragma: allowlist secret
+          SESSION_SECRET_KEY: test_session_secret_123456789012345678901234  # pragma: allowlist secret
         run: |
           cd backend
-          echo "🧪 ユニットテスト実行"
+          echo "🧪 ユニットテスト実行（SQLite使用）"
           python -m pytest tests/unit/ -v --tb=short --cov=. --cov-report=xml --cov-report=html
           echo "✅ ユニットテスト完了"
 
       - name: Run integration tests
         env:
-          DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_qrai  # pragma: allowlist secret
+          DATABASE_URL: sqlite+aiosqlite:///./test.db
           ENVIRONMENT: test
           PYTHONPATH: /home/runner/work/llm-app-trial-with-ai-driven/llm-app-trial-with-ai-driven/backend
+          OPENROUTER_API_KEY: test_key  # pragma: allowlist secret
+          GOOGLE_AI_API_KEY: test_key  # pragma: allowlist secret
+          JWT_SECRET_KEY: test_jwt_secret_123456789012345678901234  # pragma: allowlist secret
+          SESSION_SECRET_KEY: test_session_secret_123456789012345678901234  # pragma: allowlist secret
         run: |
           cd backend
-          echo "🧪 統合テスト実行"
+          echo "🧪 統合テスト実行（SQLite使用）"
           python -m pytest tests/integration/ -v --tb=short
           echo "✅ 統合テスト完了"
 
