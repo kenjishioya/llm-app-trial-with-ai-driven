@@ -9,7 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from strawberry.fastapi import GraphQLRouter
 from contextlib import asynccontextmanager
-import structlog
 from datetime import datetime
 import asyncio
 import json
@@ -18,13 +17,20 @@ import sys
 from api.resolvers import Query, Mutation, Subscription
 from config import get_settings  # type: ignore
 from pydantic import ValidationError
-
-
-logger = structlog.get_logger(__name__)
+from utils.logging import setup_logging, get_logger
 
 # 設定検証とロード
 try:
     settings = get_settings()
+
+    # ログ設定初期化
+    setup_logging(
+        log_level=settings.log_level,
+        environment=settings.environment,
+        structured=True,
+    )
+
+    logger = get_logger(__name__)
     logger.info("✅ 環境設定検証完了", environment=settings.environment)
 except ValidationError as e:
     logger.error("❌ 環境設定検証エラー", errors=[error["msg"] for error in e.errors()])
