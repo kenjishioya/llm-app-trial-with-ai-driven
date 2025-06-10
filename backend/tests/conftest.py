@@ -6,12 +6,19 @@ import pytest
 import asyncio
 import tempfile
 import os
+import sys
+from pathlib import Path
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
-from main import app
-from models import Base
-from deps import get_db
+# PythonPathを動的に追加（CI環境対応）
+backend_path = Path(__file__).parent.parent
+if str(backend_path) not in sys.path:
+    sys.path.insert(0, str(backend_path))
+
+from main import app  # noqa: E402
+from models import Base  # noqa: E402
+from deps import get_db  # noqa: E402
 
 
 @pytest.fixture(scope="session")

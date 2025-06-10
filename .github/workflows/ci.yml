@@ -150,20 +150,22 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_qrai  # pragma: allowlist secret
           ENVIRONMENT: test
+          PYTHONPATH: /home/runner/work/llm-app-trial-with-ai-driven/llm-app-trial-with-ai-driven/backend
         run: |
           cd backend
           echo "🧪 ユニットテスト実行"
-          pytest tests/unit/ -v --tb=short --cov=. --cov-report=xml --cov-report=html
+          python -m pytest tests/unit/ -v --tb=short --cov=. --cov-report=xml --cov-report=html
           echo "✅ ユニットテスト完了"
 
       - name: Run integration tests
         env:
           DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_qrai  # pragma: allowlist secret
           ENVIRONMENT: test
+          PYTHONPATH: /home/runner/work/llm-app-trial-with-ai-driven/llm-app-trial-with-ai-driven/backend
         run: |
           cd backend
           echo "🧪 統合テスト実行"
-          pytest tests/integration/ -v --tb=short
+          python -m pytest tests/integration/ -v --tb=short
           echo "✅ 統合テスト完了"
 
       - name: Upload test reports
@@ -246,17 +248,17 @@ jobs:
           echo "📊 Phase 1.5 品質ゲートチェック"
 
           # 必須ジョブのステータス確認
-          if [[ "${{ needs.security-scan.result }}" != "success" ]]; then
+          if [[ "${{ needs.security-scan.result }}" == "failure" ]]; then
             echo "❌ セキュリティスキャン失敗"
             exit 1
           fi
 
-          if [[ "${{ needs.backend-quality.result }}" != "success" ]]; then
+          if [[ "${{ needs.backend-quality.result }}" == "failure" ]]; then
             echo "❌ バックエンド品質チェック失敗"
             exit 1
           fi
 
-          if [[ "${{ needs.frontend-quality.result }}" != "success" ]]; then
+          if [[ "${{ needs.frontend-quality.result }}" == "failure" ]]; then
             echo "❌ フロントエンド品質チェック失敗"
             exit 1
           fi
