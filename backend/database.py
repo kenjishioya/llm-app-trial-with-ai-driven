@@ -45,8 +45,6 @@ def get_database_config() -> Dict[str, Any]:
         # SQLite: 開発・テスト環境設定
         pool_config = {
             "poolclass": StaticPool,  # SQLiteは静的プール
-            "pool_size": 1,  # SQLiteは単一接続
-            "max_overflow": 0,
         }
 
         connect_args = {

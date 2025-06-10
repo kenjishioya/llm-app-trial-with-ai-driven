@@ -7,15 +7,13 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: development
+    env_file:
+      - .env.test  # テスト環境設定ファイルを使用
     environment:
-      - ENV=test
-      - LOG_LEVEL=DEBUG
+      # Docker専用設定（コンテナ内での動作に必要な設定のみ）
       - PYTHONPATH=/app
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
-      - QRAI_DATABASE_URL=sqlite+aiosqlite:///./test.db
-      - LLM_PRIMARY_PROVIDER=mock
-      - LLM_FALLBACK_PROVIDERS=mock
     volumes:
       - ./backend:/app
       - test_cache:/root/.cache
@@ -24,8 +22,6 @@ services:
       sh -c "
         echo 'Waiting for dependencies...' &&
         sleep 2 &&
-        echo 'Running database migrations...' &&
-        alembic upgrade head &&
         echo 'Running tests...' &&
         python -m pytest tests/ -v --cov=. --cov-report=term-missing --cov-report=html --tb=short
       "

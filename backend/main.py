@@ -1,5 +1,6 @@
 """
 QRAI MVP API メインアプリケーション
+Phase 1.5D2: 起動時設定検証統合
 """
 
 import strawberry
@@ -12,11 +13,25 @@ import structlog
 from datetime import datetime
 import asyncio
 import json
+import sys
 
 from api.resolvers import Query, Mutation, Subscription
+from config import get_settings  # type: ignore
+from pydantic import ValidationError
 
 
 logger = structlog.get_logger(__name__)
+
+# 設定検証とロード
+try:
+    settings = get_settings()
+    logger.info("✅ 環境設定検証完了", environment=settings.environment)
+except ValidationError as e:
+    logger.error("❌ 環境設定検証エラー", errors=[error["msg"] for error in e.errors()])
+    sys.exit(1)
+except Exception as e:
+    logger.error("❌ 環境設定エラー", error=str(e))
+    sys.exit(1)
 
 
 @asynccontextmanager
@@ -35,10 +50,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS設定
+# CORS設定（環境設定から動的取得）
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://*.azurestaticapps.net"],
+    allow_origins=settings.get_allowed_origins_list(),
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
@@ -56,15 +71,29 @@ app.include_router(graphql_app, prefix="")
 @app.get("/")
 async def root():
     """ルートエンドポイント"""
-    return {"message": "QRAI MVP API", "version": "0.1.0"}
+    return {
+        "message": settings.app_name,
+        "version": settings.app_version,
+        "environment": settings.environment,
+    }
 
 
 @app.get("/health")
 async def health_check():
     """ヘルスチェックエンドポイント"""
+    # APIキー設定状況
+    api_status = settings.validate_api_keys()
+    configured_apis = [api for api, status in api_status.items() if status]
+
     return {
         "status": "ok",
         "timestamp": datetime.now().isoformat(),
+        "environment": settings.environment,
+        "app_name": settings.app_name,
+        "version": settings.app_version,
+        "database": settings.get_database_info()["scheme"],
+        "configured_apis": configured_apis,
+        "debug_mode": settings.debug,
     }
 
 

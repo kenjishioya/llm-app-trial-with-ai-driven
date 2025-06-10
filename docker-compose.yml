@@ -10,29 +10,13 @@ services:
     container_name: qrai_backend
     ports:
       - "8000:8000"
+    env_file:
+      - .env.development  # 開発環境設定ファイルを使用
     environment:
-      - ENV=development
-      - LOG_LEVEL=DEBUG
+      # Docker/コンテナ専用設定
       - PYTHONPATH=/app
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
-
-      # Database (開発用はSQLite)
-      - DATABASE_URL=postgresql+asyncpg://qrai_user:dev_password@postgres:5432/qrai_dev
-
-      # LLM Provider設定（環境変数から取得）
-      - QRAI_LLM_PRIMARY_PROVIDER=${LLM_PRIMARY_PROVIDER:-openrouter}
-      - QRAI_LLM_FALLBACK_PROVIDERS=${LLM_FALLBACK_PROVIDERS:-google_ai,azure_openai}
-
-      # Key Vault（開発環境では直接環境変数）
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
-      - QRAI_AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
-      - QRAI_AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
-
-      # Azure Search（開発環境では無効化可能）
-      - QRAI_AZURE_SEARCH_ENDPOINT=${AZURE_SEARCH_ENDPOINT:-}
-      - QRAI_AZURE_SEARCH_API_KEY=${AZURE_SEARCH_API_KEY:-}
 
     volumes:
       - ./backend:/app
@@ -82,10 +66,9 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: qrai_postgres
+    env_file:
+      - .env.development  # PostgreSQL設定も.envから読み込み
     environment:
-      POSTGRES_DB: qrai_dev
-      POSTGRES_USER: qrai_user
-      POSTGRES_PASSWORD: dev_password  # pragma: allowlist secret
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=ja_JP.UTF-8"
     ports:
       - "5432:5432"
