@@ -29,31 +29,32 @@ repos:
         files: ^frontend/.*\.(js|jsx|ts|tsx|json|css|md|yml|yaml)$
         exclude: ^frontend/(node_modules/|dist/|build/|coverage/)
 
-  - repo: local
-    hooks:
-      - id: eslint
-        name: ESLint
-        entry: sh -c 'cd frontend && npm run lint'
-        language: system
-        files: ^frontend/.*\.(js|jsx|ts|tsx)$
-        pass_filenames: false
+  # フロントエンドツールは現在Phase 1.5では無効化
+  # - repo: local
+  #   hooks:
+  #     - id: eslint
+  #       name: ESLint
+  #       entry: sh -c 'cd frontend && npm run lint'
+  #       language: system
+  #       files: ^frontend/.*\.(js|jsx|ts|tsx)$
+  #       pass_filenames: false
 
-  # インフラストラクチャ関連
-  - repo: local
-    hooks:
-      - id: terraform-fmt
-        name: Terraform Format
-        entry: terraform fmt -recursive
-        language: system
-        files: ^infra/terraform/.*\.tf$
-        pass_filenames: false
-
-      - id: bicep-build
-        name: Bicep Build Check
-        entry: sh -c 'cd infra/bicep && az bicep build --file main.bicep --stdout > /dev/null'
-        language: system
-        files: ^infra/bicep/.*\.bicep$
-        pass_filenames: false
+  # インフラストラクチャ関連（現在Phase 1.5では無効化）
+  # - repo: local
+  #   hooks:
+  #     - id: terraform-fmt
+  #       name: Terraform Format
+  #       entry: terraform fmt -recursive
+  #       language: system
+  #       files: ^infra/terraform/.*\.tf$
+  #       pass_filenames: false
+  #
+  #     - id: bicep-build
+  #       name: Bicep Build Check
+  #       entry: sh -c 'cd infra/bicep && az bicep build --file main.bicep --stdout > /dev/null'
+  #       language: system
+  #       files: ^infra/bicep/.*\.bicep$
+  #       pass_filenames: false
 
   # セキュリティ関連
   - repo: https://github.com/Yelp/detect-secrets
