@@ -109,6 +109,21 @@ async def db_session():
 def client(db_session):
     """テスト用HTTPクライアント"""
 
+    # テスト用環境変数設定（SQLiteを強制）
+    original_env = {}
+    test_env_vars = {
+        "ENVIRONMENT": "test",
+        "DATABASE_URL": f"sqlite+aiosqlite:///{db_session._test_db_path}",
+        "OPENROUTER_API_KEY": "test_key",  # pragma: allowlist secret
+        "GOOGLE_AI_API_KEY": "test_key",  # pragma: allowlist secret
+        "JWT_SECRET_KEY": "test_jwt_secret_123456789012345678901234",  # pragma: allowlist secret
+        "SESSION_SECRET_KEY": "test_session_secret_123456789012345678901234",  # pragma: allowlist secret
+    }
+
+    for key, value in test_env_vars.items():
+        original_env[key] = os.getenv(key)
+        os.environ[key] = value
+
     # セッションをテスト用に上書き
     async def override_get_db():
         yield db_session
@@ -120,6 +135,12 @@ def client(db_session):
             yield test_client
     finally:
         app.dependency_overrides.clear()
+        # 環境変数を元に戻す
+        for key, original_value in original_env.items():
+            if original_value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = original_value
 
 
 @pytest.fixture
