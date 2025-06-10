@@ -29,15 +29,14 @@ repos:
         files: ^frontend/.*\.(js|jsx|ts|tsx|json|css|md|yml|yaml)$
         exclude: ^frontend/(node_modules/|dist/|build/|coverage/)
 
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.28.0
+  - repo: local
     hooks:
       - id: eslint
+        name: ESLint
+        entry: sh -c 'cd frontend && npm run lint'
+        language: system
         files: ^frontend/.*\.(js|jsx|ts|tsx)$
-        additional_dependencies:
-          - '@typescript-eslint/eslint-plugin@^6.0.0'
-          - '@typescript-eslint/parser@^6.0.0'
-          - 'eslint-config-prettier@^9.0.0'
+        pass_filenames: false
 
   # インフラストラクチャ関連
   - repo: local

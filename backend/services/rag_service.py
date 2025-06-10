@@ -28,14 +28,14 @@ class RAGService:
     ) -> Dict[str, Any]:
         """質問に回答（Phase 1簡易実装）"""
         try:
-            # セッション取得または作成
-            if session_id:
-                session = await self.session_service.get_session(str(session_id))
-                if not session:
-                    raise ValueError(f"Session not found: {session_id}")
-            else:
-                session = await self.session_service.create_session()
-                session_id = session.id
+            # セッションIDが必須
+            if not session_id:
+                raise ValueError("Session ID is required")
+
+            # セッション取得
+            session = await self.session_service.get_session(str(session_id))
+            if not session:
+                raise ValueError(f"Session not found: {session_id}")
 
             # ユーザーメッセージを保存
             user_message = Message(
@@ -93,14 +93,24 @@ class RAGService:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """ストリーミング回答（Phase 1簡易実装）"""
         try:
-            # セッション取得または作成
-            if session_id:
-                session = await self.session_service.get_session(str(session_id))
-                if not session:
-                    raise ValueError(f"Session not found: {session_id}")
-            else:
-                session = await self.session_service.create_session()
-                session_id = session.id
+            # セッションIDが必須
+            if not session_id:
+                yield {
+                    "error": "Session ID is required",
+                    "session_id": None,
+                    "is_complete": True,
+                }
+                return
+
+            # セッション取得
+            session = await self.session_service.get_session(str(session_id))
+            if not session:
+                yield {
+                    "error": f"Session not found: {session_id}",
+                    "session_id": str(session_id),
+                    "is_complete": True,
+                }
+                return
 
             # ユーザーメッセージを保存
             user_message = Message(
