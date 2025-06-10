@@ -18,6 +18,7 @@ if str(backend_path) not in sys.path:
 
 from main import app  # noqa: E402
 from models import Base  # noqa: E402
+from database import get_db  # noqa: E402
 
 
 @pytest.fixture(scope="session")
@@ -105,42 +106,20 @@ async def db_session():
 
 
 @pytest.fixture
-def client():
+def client(db_session):
     """テスト用HTTPクライアント"""
 
-    # 一時SQLiteファイル作成
-    test_db_fd, test_db_path = tempfile.mkstemp(suffix=".db")
-    os.close(test_db_fd)
+    # データベースセッションを上書き
+    async def override_get_db():
+        yield db_session
 
-    # テスト用環境変数設定（SQLiteを強制）
-    original_env = {}
-    test_env_vars = {
-        "ENVIRONMENT": "test",
-        "DATABASE_URL": f"sqlite+aiosqlite:///{test_db_path}",
-        "OPENROUTER_API_KEY": "test_key",  # pragma: allowlist secret
-        "GOOGLE_AI_API_KEY": "test_key",  # pragma: allowlist secret
-        "JWT_SECRET_KEY": "test_jwt_secret_123456789012345678901234",  # pragma: allowlist secret
-        "SESSION_SECRET_KEY": "test_session_secret_123456789012345678901234",  # pragma: allowlist secret
-    }
-
-    for key, value in test_env_vars.items():
-        original_env[key] = os.getenv(key)
-        os.environ[key] = value
+    app.dependency_overrides[get_db] = override_get_db
 
     try:
         with TestClient(app) as test_client:
             yield test_client
     finally:
         app.dependency_overrides.clear()
-        # 環境変数を元に戻す
-        for key, original_value in original_env.items():
-            if original_value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = original_value
-        # 一時ファイル削除
-        if os.path.exists(test_db_path):
-            os.unlink(test_db_path)
 
 
 @pytest.fixture
