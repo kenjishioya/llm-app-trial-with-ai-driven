@@ -242,17 +242,17 @@ npm test  # 76テスト全成功、高カバレッジ達成
 * [ ] **インデックス管理**: スキーマ定義、フィールドマッピング、アナライザー設定
 * [ ] **検索機能統合**: 既存RAGServiceとAI Search統合、ハイブリッド検索対応
 
-#### 1-3B ドキュメントアップロード機能
-* [ ] **アップロードAPI**: GraphQL mutation、ファイル受信・処理パイプライン
-* [ ] **ストレージ統合**: Azure Blob Storage、ファイル保存・管理
+#### 1-3B ドキュメントアップロード・処理機能
+* [ ] **ストレージ統合**: Azure Blob Storage、基本的なファイル保存
+* [ ] **ドキュメント処理API**: アップロードされたファイルの自動処理パイプライン
 * [ ] **チャンク処理**: ドキュメント分割、メタデータ付与、インデックス投入
-* [ ] **アップロードUI**: ドラッグ&ドロップ、進捗表示、エラーハンドリング
+* [ ] **手動アップロード**: Azure Portal/CLI経由でのファイルアップロード手順
 
 #### 1-3C テストドキュメント準備・検証
 * [ ] **テストドキュメント収集**: 技術資料、FAQ、マニュアル等のサンプル準備
 * [ ] **インデックス投入**: テストドキュメントの自動アップロード・インデックス化
 * [ ] **検索品質検証**: 検索精度テスト、関連性スコア、引用機能確認
-* [ ] **統合テスト**: RAG機能とAI Search統合、E2Eテスト拡張
+* [ ] **統合テスト**: RAG機能とAI Search統合の動作確認
 
 **Phase 3 完了条件**:
 ```bash
@@ -311,10 +311,10 @@ cd backend && pytest tests/test_deep_research.py::test_full_research_flow
 ### Phase 5: UI改善とセッション管理
 
 #### 1-5A UI/UX改善
-* [ ] **レスポンシブ改善**: モバイル最適化、タブレット対応、操作性向上
-* [ ] **アクセシビリティ**: WAI-ARIA準拠、キーボードナビゲーション、スクリーンリーダー対応
-* [ ] **パフォーマンス最適化**: コンポーネント分割、Lazy Loading、バンドルサイズ削減
-* [ ] **テーマ・デザインシステム**: ダークモード、カラーパレット、統一デザイン
+* [ ] **ユーザー指示による改善**: 具体的な改善項目はユーザーからの指示に基づいて実施
+* [ ] **レスポンシブ対応**: 必要に応じてモバイル・タブレット最適化
+* [ ] **アクセシビリティ対応**: 必要に応じてWAI-ARIA準拠、キーボードナビゲーション対応
+* [ ] **デザイン調整**: 必要に応じてテーマ・カラー・レイアウト調整
 
 #### 1-5B セッション管理機能拡張
 * [ ] **セッション CRUD API**: 一覧取得、詳細取得、削除、更新、タイトル編集
@@ -322,26 +322,23 @@ cd backend && pytest tests/test_deep_research.py::test_full_research_flow
 * [ ] **セッション復元機能**: 過去チャット復元、メッセージ履歴表示、ブックマーク
 * [ ] **履歴UI改善**: SessionList強化、セッション切り替え、削除確認ダイアログ
 
-#### 1-5C E2E テスト拡張・品質保証
-* [ ] **セッション管理テスト**: 作成→メッセージ→切り替え→削除フロー
-* [ ] **UI操作テスト**: サイドバー操作、履歴表示、レスポンシブ確認
-* [ ] **アクセシビリティテスト**: axe-core統合、WCAG準拠チェック
-* [ ] **パフォーマンステスト**: Lighthouse CI、Core Web Vitals測定
+#### 1-5C 品質保証・テスト
+* [ ] **セッション管理テスト**: 基本的な機能動作確認（作成・削除・切り替え）
+* [ ] **UI動作テスト**: サイドバー操作、履歴表示の動作確認
+* [ ] **統合テスト**: フロントエンド・バックエンド統合動作確認
 
 **Phase 5 完了条件**:
 ```bash
 # セッション管理全機能確認
 curl http://localhost:8000/graphql -d '{"query":"query{sessions{id title createdAt}}"}'
 
-# E2E テスト拡張成功
-npx playwright test tests/e2e/session-management.spec.ts
-npx playwright test tests/e2e/responsive.spec.ts
+# UI改善確認（ユーザー指示による改善項目）
+# ブラウザでの動作確認
+open http://localhost:3000
 
-# アクセシビリティ・パフォーマンステスト
-npm run test:a11y  # axe-core テスト
-npm run test:lighthouse  # Lighthouse CI
-
-# UI改善確認（レスポンシブ、ダークモード等）
+# 統合テスト成功
+npm test  # フロントエンドテスト
+cd backend && pytest tests/  # バックエンドテスト
 ```
 
 ---
@@ -391,12 +388,12 @@ npm run test:lighthouse  # Lighthouse CI
 ### 🎯 最終MVP完了条件
 
 * [ ] `docker compose up` でローカル起動し UI で質問→回答（5分以内）
-* [ ] GitHub Actions CI 緑（unit, integration, e2e, lint）
+* [ ] GitHub Actions CI 緑（unit, integration, lint）
 * [ ] Azure AI Search統合：テストドキュメント検索→RAG回答生成
 * [ ] ドキュメントアップロード：PDF/DOCX→AI Search インデックス投入
 * [ ] セッション管理：作成・一覧・削除・復元・履歴表示が動作
 * [ ] Deep Research：「競合分析」で構造化レポート生成（120秒以内）
-* [ ] UI改善：レスポンシブ、アクセシビリティ、ダークモード対応
+* [ ] UI改善：ユーザー指示による改善項目の実装完了
 * [ ] README でオンボーディング所要時間 ≤ 15min（実測）
 
 ### 📋 品質ゲート
@@ -409,7 +406,7 @@ npm run test:lighthouse  # Lighthouse CI
 |            | Deep Research完了時間              | < 120秒        |
 |            | ドキュメント検索精度                     | 関連性スコア > 0.7  |
 | **可用性**     | E2E テスト成功率                     | 100%          |
-| **アクセシビリティ** | axe-core violations             | 0 violations  |
+| **ユーザビリティ** | UI改善項目（ユーザー指示）            | 指示通り実装完了   |
 | **コード品質**   | ESLint/Ruff 警告                  | 0 warnings    |
 
 ---
