@@ -1,0 +1,167 @@
+name: 🛡️ Security Scan Pipeline
+
+on:
+  schedule:
+    # 毎日午前2時（JST）に実行
+    - cron: '0 17 * * *'
+  workflow_dispatch: # 手動実行可能
+
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '20'
+
+jobs:
+  dependency-scan:
+    name: 📦 Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Python security tools
+        run: |
+          pip install pip-audit safety bandit
+
+      - name: Python dependency scan
+        run: |
+          echo "🔍 Python依存関係脆弱性スキャン"
+          cd backend
+          pip-audit --desc --format=json --output=python-vulns.json
+          echo "✅ Python スキャン完了"
+
+      - name: Python SAST scan
+        run: |
+          echo "🔍 Python SAST スキャン"
+          cd backend
+          bandit -r . -f json -o bandit-report.json -ll
+          echo "✅ Python SAST完了"
+
+      - name: Node.js dependency scan
+        run: |
+          echo "🔍 Node.js依存関係脆弱性スキャン"
+          cd frontend
+          npm install
+          npm audit --audit-level=high --json > npm-audit.json || true
+          echo "✅ Node.js スキャン完了"
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports-${{ github.run_id }}
+          path: |
+            backend/python-vulns.json
+            backend/bandit-report.json
+            frontend/npm-audit.json
+          retention-days: 90
+
+  secrets-scan:
+    name: 🔐 Secrets Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install detect-secrets
+        run: |
+          pip install detect-secrets
+
+      - name: Run secrets scan
+        run: |
+          echo "🔍 機密情報スキャン実行"
+          detect-secrets scan --baseline .secrets.baseline --force-use-all-plugins
+          echo "✅ 機密情報スキャン完了"
+
+      - name: Generate new baseline (if needed)
+        run: |
+          detect-secrets scan --update .secrets.baseline --force-use-all-plugins
+
+  license-compliance:
+    name: 📄 License Compliance Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install license checker
+        run: |
+          pip install pip-licenses
+
+      - name: Check Python licenses
+        run: |
+          echo "📄 Python ライセンス確認"
+          cd backend
+          pip install -r requirements.txt
+          pip-licenses --format=json --output-file=python-licenses.json
+          echo "✅ Python ライセンス確認完了"
+
+      - name: Upload license reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-reports-${{ github.run_id }}
+          path: |
+            backend/python-licenses.json
+          retention-days: 30
+
+  security-summary:
+    name: 📊 Security Summary
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, secrets-scan, license-compliance]
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Generate security summary
+        run: |
+          echo "# 🛡️ セキュリティスキャン結果サマリー" >> security-summary.md
+          echo "## 実行日時: $(date)" >> security-summary.md
+          echo "" >> security-summary.md
+
+          echo "## 📊 結果一覧" >> security-summary.md
+          echo "- 依存関係スキャン: ${{ needs.dependency-scan.result }}" >> security-summary.md
+          echo "- 機密情報スキャン: ${{ needs.secrets-scan.result }}" >> security-summary.md
+          echo "- ライセンス確認: ${{ needs.license-compliance.result }}" >> security-summary.md
+          echo "" >> security-summary.md
+
+          if [[ "${{ needs.dependency-scan.result }}" == "success" &&
+                "${{ needs.secrets-scan.result }}" == "success" &&
+                "${{ needs.license-compliance.result }}" == "success" ]]; then
+            echo "✅ **すべてのセキュリティチェックが正常に完了しました**" >> security-summary.md
+          else
+            echo "❌ **一部のセキュリティチェックで問題が検出されました**" >> security-summary.md
+            echo "" >> security-summary.md
+            echo "詳細はArtifactsのレポートファイルを確認してください。" >> security-summary.md
+          fi
+
+      - name: Upload summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-summary-${{ github.run_id }}
+          path: security-summary.md
+          retention-days: 90

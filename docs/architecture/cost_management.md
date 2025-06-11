@@ -15,14 +15,14 @@ graph TB
         STAGING[Staging<br/>$50-100/月<br/>一部有料SKU]
         PROD[Production<br/>$500-1000/月<br/>パフォーマンス重視]
     end
-    
+
     MVP --> |段階的拡張| STAGING
     STAGING --> |本格運用| PROD
-    
+
     MVP --> MONITOR[Cost Monitoring<br/>Azure Cost Management]
     STAGING --> MONITOR
     PROD --> MONITOR
-    
+
     style MVP fill:#99ff99
     style STAGING fill:#ffcc99
     style PROD fill:#ff9999
@@ -85,7 +85,7 @@ variable "environment" {
   description = "Environment (dev/staging/prod)"
   type        = string
   default     = "dev"
-  
+
   validation {
     condition = contains(["dev", "staging", "prod"], var.environment)
     error_message = "Environment must be dev, staging, or prod."
@@ -104,13 +104,13 @@ locals {
   ai_search_sku = var.is_free_tier ? "free" : (
     var.environment == "prod" ? "standard" : "basic"
   )
-  
+
   openai_model = var.is_free_tier ? "gpt-4o-mini" : "gpt-4"
-  
+
   container_cpu = var.is_free_tier ? 0.25 : (
     var.environment == "prod" ? 2.0 : 1.0
   )
-  
+
   container_memory = var.is_free_tier ? "0.5Gi" : (
     var.environment == "prod" ? "4Gi" : "2Gi"
   )
@@ -126,11 +126,11 @@ resource "azurerm_search_service" "main" {
   resource_group_name = azurerm_resource_group.main.name
   location           = azurerm_resource_group.main.location
   sku                = local.ai_search_sku
-  
+
   # 無料枠の場合は replica/partition を制限
   replica_count      = var.is_free_tier ? 1 : var.search_replicas
   partition_count    = var.is_free_tier ? 1 : var.search_partitions
-  
+
   tags = {
     CostCenter = "qrai-${var.environment}"
     IsFree     = tostring(var.is_free_tier)
@@ -144,7 +144,7 @@ resource "azurerm_cognitive_account" "openai" {
   location           = "East US"
   kind               = "OpenAI"
   sku_name           = var.is_free_tier ? "S0" : "S0"  # S0 は従量課金
-  
+
   tags = {
     CostCenter = "qrai-${var.environment}"
     Model      = local.openai_model
@@ -154,13 +154,13 @@ resource "azurerm_cognitive_account" "openai" {
 resource "azurerm_cognitive_deployment" "gpt" {
   name               = "gpt-deployment"
   cognitive_account_id = azurerm_cognitive_account.openai.id
-  
+
   model {
     format  = "OpenAI"
     name    = local.openai_model
     version = "0125"  # gpt-4o-mini latest
   }
-  
+
   scale {
     type     = "Standard"
     capacity = var.is_free_tier ? 1 : 10  # TPM制限
@@ -183,21 +183,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-        
+
       - name: Terraform Plan
         run: |
           cd infra/terraform
           terraform init
           terraform plan -out=plan.out
-          
+
       - name: Cost Estimation
         uses: infracost/infracost-github-action@v3
         with:
           path: infra/terraform/plan.out
-          
+
       - name: Free Tier Validation
         run: |
           # 有料SKUが含まれていないかチェック
@@ -205,8 +205,8 @@ jobs:
             echo "❌ Paid SKUs detected in free tier environment"
             exit 1
           fi
-          
-      - name: Budget Validation  
+
+      - name: Budget Validation
         run: |
           # 予算上限チェック
           ESTIMATED_COST=$(infracost breakdown --path plan.out --format json | jq '.totalMonthlyCost')
@@ -238,7 +238,7 @@ az consumption budget create \
     contact-roles="Owner,Contributor" \
     locale="ja-JP"
 
-# ステージング環境用予算設定  
+# ステージング環境用予算設定
 az consumption budget create \
   --budget-name "qrai-staging-budget" \
   --amount 100 \
@@ -263,7 +263,7 @@ az consumption budget create \
   "condition": {
     "query": "AzureCosts | where ServiceName == 'Cognitive Services' | summarize TotalCost = sum(CostInBillingCurrency) by bin(TimeGenerated, 1d) | where TotalCost > 3.0",
     "timeAggregation": "Total",
-    "operator": "GreaterThan", 
+    "operator": "GreaterThan",
     "threshold": 3.0,
     "evaluationFrequency": "PT1H",
     "windowSize": "PT24H"
@@ -296,9 +296,9 @@ AzureCosts
 | render timechart
 
 // サービス別コスト内訳
-AzureCosts  
+AzureCosts
 | where TimeGenerated >= startofmonth(now())
-| summarize 
+| summarize
     TotalCost = sum(CostInBillingCurrency),
     AvgDailyCost = avg(CostInBillingCurrency)
 by ServiceName
@@ -310,7 +310,7 @@ by ServiceName
 AzureCosts
 | where TimeGenerated >= ago(30d)
 | where ResourceGroup contains "qrai"
-| summarize 
+| summarize
     MonthlyCost = sum(CostInBillingCurrency),
     ResourceCount = dcount(ResourceId)
 by ResourceGroup
@@ -321,14 +321,14 @@ by ResourceGroup
 customMetrics
 | where name == "openai_tokens_consumed"
 | where timestamp >= ago(30d)
-| summarize 
+| summarize
     TotalTokens = sum(value),
     DailyAvgTokens = avg(value)
 by bin(timestamp, 1d)
 | extend EstimatedCost = TotalTokens * 0.00015  // $0.15/1M tokens
 | extend MonthlyProjection = DailyAvgTokens * 30 * 0.00015
 | project timestamp, TotalTokens, EstimatedCost, MonthlyProjection
-| render timechart 
+| render timechart
 ```
 
 ---
@@ -346,23 +346,23 @@ class OptimizedPromptBuilder:
         self.base_template = """Context: {context}
 Q: {question}
 A:"""  # 冗長な指示を削除
-        
+
     def build_rag_prompt(self, context: str, question: str) -> str:
         # コンテキスト長制限（最大1000トークン≈4000文字）
         if len(context) > 4000:
             context = self.truncate_context(context, max_chars=4000)
-            
+
         return self.base_template.format(
             context=context,
             question=question
         )
-    
+
     def truncate_context(self, context: str, max_chars: int) -> str:
         # 重要度スコアリングによる要約
         sentences = context.split('。')
         if len(context) <= max_chars:
             return context
-            
+
         # 中央部分を保持する戦略
         return context[:max_chars//2] + "...(省略)..." + context[-max_chars//2:]
 
@@ -371,14 +371,14 @@ class TokenTracker:
     def __init__(self):
         self.daily_usage = 0
         self.monthly_limit = 50000  # 無料枠想定上限
-        
+
     async def track_usage(self, prompt_tokens: int, completion_tokens: int):
         total_tokens = prompt_tokens + completion_tokens
         self.daily_usage += total_tokens
-        
+
         # コスト計算 ($0.15/1M tokens for gpt-4o-mini)
         cost = total_tokens * 0.00015 / 1000
-        
+
         # アラート条件
         if self.daily_usage > self.monthly_limit / 30:
             await self.send_usage_alert(total_tokens, cost)
@@ -394,12 +394,12 @@ class ResponseCache:
     def __init__(self, max_size: int = 256):
         self.cache = {}
         self.max_size = max_size
-        
+
     def get_cache_key(self, prompt: str, model: str) -> str:
         # プロンプトと模型のハッシュからキー生成
         content = f"{prompt}:{model}"
         return hashlib.md5(content.encode()).hexdigest()
-    
+
     @lru_cache(maxsize=256)
     async def get_cached_response(self, cache_key: str, prompt: str, model: str):
         # 24時間キャッシュ
@@ -407,7 +407,7 @@ class ResponseCache:
             cached_item = self.cache[cache_key]
             if (datetime.now() - cached_item['timestamp']).hours < 24:
                 return cached_item['response']
-        
+
         # キャッシュミス：実際にLLM呼び出し
         response = await self.call_openai(prompt, model)
         self.cache[cache_key] = {
@@ -426,19 +426,19 @@ class DocumentOptimizer:
     def optimize_for_indexing(self, document: dict) -> dict:
         # テキスト圧縮（重複除去、不要文字削除）
         content = document.get('content', '')
-        
+
         # 重複文除去
         sentences = list(set(content.split('。')))
         content = '。'.join(sentences)
-        
+
         # HTMLタグ、余分な空白除去
         content = re.sub(r'<[^>]+>', '', content)
         content = re.sub(r'\s+', ' ', content).strip()
-        
+
         # 最大文字数制限（Free tier 50MB制限対応）
         if len(content) > 5000:  # 1文書最大5KB
             content = content[:5000] + "..."
-            
+
         return {
             'id': document['id'],
             'title': document.get('title', '')[:200],  # タイトル制限
@@ -457,24 +457,24 @@ class IndexManager:
             'current': 'qrai-docs-current',  # 最新文書
             'archive': 'qrai-docs-archive'   # アーカイブ
         }
-        
+
     async def manage_storage_limit(self):
         # ストレージ使用量チェック
         current_size = await self.get_index_size('current')
-        
+
         if current_size > 40:  # 40MB で警告
             # 古い文書をアーカイブに移動
             await self.archive_old_documents()
-            
+
         if current_size > 45:  # 45MB で緊急対応
             # アーカイブからも古い文書を削除
             await self.cleanup_archive()
-    
+
     async def archive_old_documents(self):
         # 6ヶ月以上古い文書をアーカイブに移動
         cutoff_date = datetime.now() - timedelta(days=180)
         old_docs = await self.search_by_date(before=cutoff_date)
-        
+
         for doc in old_docs:
             await self.move_to_archive(doc)
 ```
@@ -494,7 +494,7 @@ properties:
           http:
             metadata:
               concurrentRequests: 100
-        - name: "cpu-utilization" 
+        - name: "cpu-utilization"
           custom:
             type: "cpu"
             metadata:
@@ -530,7 +530,7 @@ properties:
           "query": "AzureCosts | where TimeGenerated >= startofmonth(now()) | summarize MonthlySpend = sum(CostInBillingCurrency) | extend BudgetProgress = (MonthlySpend / 5.0) * 100 | project BudgetProgress",
           "thresholds": [
             {"value": 50, "color": "green"},
-            {"value": 80, "color": "yellow"}, 
+            {"value": 80, "color": "yellow"},
             {"value": 100, "color": "red"}
           ]
         }
@@ -546,7 +546,7 @@ properties:
           "alert_threshold": 45
         },
         {
-          "type": "timechart", 
+          "type": "timechart",
           "title": "OpenAI Token消費",
           "query": "customMetrics | where name == 'openai_tokens_consumed' | summarize sum(value) by bin(timestamp, 1h)"
         }
@@ -568,29 +568,29 @@ class CostMonitor:
     def __init__(self):
         self.credential = DefaultAzureCredential()
         self.consumption_client = ConsumptionManagementClient(
-            self.credential, 
+            self.credential,
             subscription_id=os.getenv("AZURE_SUBSCRIPTION_ID")
         )
-        
+
     async def check_daily_budget(self):
         # 当日のコスト取得
         today_cost = await self.get_today_cost()
         monthly_budget = 5.0
         days_in_month = calendar.monthrange(datetime.now().year, datetime.now().month)[1]
         daily_budget = monthly_budget / days_in_month
-        
+
         if today_cost > daily_budget * 1.5:  # 150%超過でアラート
             await self.send_cost_alert(today_cost, daily_budget)
-            
+
     async def cleanup_if_budget_exceeded(self):
         monthly_cost = await self.get_monthly_cost()
         if monthly_cost > 4.0:  # $4超過で自動制限
             # AI Search QPS制限
             await self.apply_rate_limit("ai_search", max_qps=1)
-            
+
             # Container Apps スケールダウン
             await self.scale_down_containers(min_replicas=0, max_replicas=1)
-            
+
             # 非必須機能無効化
             await self.disable_deep_research()
 
@@ -714,4 +714,4 @@ echo "✅ Emergency measures applied"
 
 ---
 
-*Last updated: 2025-06-03* 
+*Last updated: 2025-06-03*

@@ -1,12 +1,12 @@
 ---
-description: 
+description:
 globs: app/**/*.*
 alwaysApply: false
 ---
 ---
 description: >
   Next.js 14 の App Router を用いたフォルダ構成・コンポーネント配置・データフェッチ・
-  スタイリング・パフォーマンス最適化に関するルールです。  
+  スタイリング・パフォーマンス最適化に関するルールです。
   `app/` 配下のファイルに自動適用されます。
 globs:
   - "app/**/*.*"
@@ -14,42 +14,42 @@ globs:
 
 # 🌐 Next.js 14 App Router ルール
 
-> Next.js 14 で App Router（`app/` フォルダ）を使う際の最小限ルールを定義します。  
-> 違反があれば AI は出力を再生成するか修正し、最終的に遵守されたコードのみを返してください。  
+> Next.js 14 で App Router（`app/` フォルダ）を使う際の最小限ルールを定義します。
+> 違反があれば AI は出力を再生成するか修正し、最終的に遵守されたコードのみを返してください。
 > 背景や詳細なガイドは下記 `@Docs` リンクを参照してください。
 
 ## 1. フォルダ構成（`app/` 配下）
-- **ルート構成**  
-  - `app/layout.tsx` ：アプリ全体のルートレイアウト。共通ヘッダ／フッタや `Providers` を配置。  
-  - `app/page.tsx` ：トップページ。Next.js はここを `/` ルートとして扱う。  
-- **動的ルート**  
-  - フォルダ名を `[param]` のように指定し、たとえば `app/chat/[sessionId]/page.tsx` とする。  
-  - 動的パラメータは **必ず型ガード** (zod/Pydantic 相当) を通す（例: `params.sessionId` を文字列として検証）。  
-- **レイアウト分割**  
-  - セクションごとに `layout.tsx` を置き、ネストされたレイアウトを使う。  
-    例: `app/chat/layout.tsx` にはチャット画面専用のサイドバーや共通UIを配置し、  
-    `app/chat/[sessionId]/page.tsx` からはそのレイアウトを継承させる。  
-- **サブフォルダ置き方**  
-  - `app/(dashboard)/analytics/page.tsx` のように **グループ化フォルダ** `(folderName)` を使い、  
-    レイアウトを切り替えずに同じレイアウト内に異なるセクションを配置するパターン可。  
+- **ルート構成**
+  - `app/layout.tsx` ：アプリ全体のルートレイアウト。共通ヘッダ／フッタや `Providers` を配置。
+  - `app/page.tsx` ：トップページ。Next.js はここを `/` ルートとして扱う。
+- **動的ルート**
+  - フォルダ名を `[param]` のように指定し、たとえば `app/chat/[sessionId]/page.tsx` とする。
+  - 動的パラメータは **必ず型ガード** (zod/Pydantic 相当) を通す（例: `params.sessionId` を文字列として検証）。
+- **レイアウト分割**
+  - セクションごとに `layout.tsx` を置き、ネストされたレイアウトを使う。
+    例: `app/chat/layout.tsx` にはチャット画面専用のサイドバーや共通UIを配置し、
+    `app/chat/[sessionId]/page.tsx` からはそのレイアウトを継承させる。
+- **サブフォルダ置き方**
+  - `app/(dashboard)/analytics/page.tsx` のように **グループ化フォルダ** `(folderName)` を使い、
+    レイアウトを切り替えずに同じレイアウト内に異なるセクションを配置するパターン可。
 - 詳細: @Docs docs/architecture/component_frontend.md#ディレクトリ構成
 
 ## 2. Server / Client コンポーネントの使い分け
-- **デフォルトは Server Components**  
-  - `page.tsx` や `layout.tsx` は特に記述がない限りサーバ上でレンダリングされる。  
-- **必要に応じて Client Component 化**  
-  - クライアントサイドでの状態管理やイベントハンドリングが必要な場合は、  
-    ファイル冒頭に必ず `"use client";` を記述する。  
-  - ただし、**無闇に `"use client";` を追加しない**。Server/Client 境界を越える際のオーバーヘッドを抑える。  
-- **ルール**  
-  - `app/**/*.server.tsx` や `app/**/*.client.tsx` のように拡張子で区別せず、常に `"use client";` で明示。  
-  - クライアントコンポーネントでは **Hooks（useState, useEffect など）だけ** を使用し、サーバAPI直接呼び出しは不可。  
+- **デフォルトは Server Components**
+  - `page.tsx` や `layout.tsx` は特に記述がない限りサーバ上でレンダリングされる。
+- **必要に応じて Client Component 化**
+  - クライアントサイドでの状態管理やイベントハンドリングが必要な場合は、
+    ファイル冒頭に必ず `"use client";` を記述する。
+  - ただし、**無闇に `"use client";` を追加しない**。Server/Client 境界を越える際のオーバーヘッドを抑える。
+- **ルール**
+  - `app/**/*.server.tsx` や `app/**/*.client.tsx` のように拡張子で区別せず、常に `"use client";` で明示。
+  - クライアントコンポーネントでは **Hooks（useState, useEffect など）だけ** を使用し、サーバAPI直接呼び出しは不可。
 - 詳細: @Docs docs/architecture/component_frontend.md#Server-Client-分離
 
 ## 3. データフェッチ & キャッシュ戦略
-- **Server Component 内でのデータ取得**  
-  - `fetch()` を使い、`cache: 'force-cache'` や `cache: 'no-cache'` を明示して**ISR/SSG/SSR** を制御。  
-  - 簡易的な例:  
+- **Server Component 内でのデータ取得**
+  - `fetch()` を使い、`cache: 'force-cache'` や `cache: 'no-cache'` を明示して**ISR/SSG/SSR** を制御。
+  - 簡易的な例:
     ```ts
     // Server Component
     export default async function Page() {
@@ -58,86 +58,86 @@ globs:
       return <div>{data.title}</div>;
     }
     ```
-- **Client Component の場合**  
-  - SWR や React Query を使い、クライアントキャッシュを効かせる。  
-  - `useCache: false` などを使わず、**最低限のフェッチ数**を心がける。  
-- **動的パラメータ付きルート**  
-  - `generateStaticParams` / `generateMetadata` を使い、**事前ビルド** 対応を検討。  
-  - 動的ルートであっても、パラメータの候補が限られる場合は **先にビルドしておく** (例: `getStaticPaths` 相当)。  
+- **Client Component の場合**
+  - SWR や React Query を使い、クライアントキャッシュを効かせる。
+  - `useCache: false` などを使わず、**最低限のフェッチ数**を心がける。
+- **動的パラメータ付きルート**
+  - `generateStaticParams` / `generateMetadata` を使い、**事前ビルド** 対応を検討。
+  - 動的ルートであっても、パラメータの候補が限られる場合は **先にビルドしておく** (例: `getStaticPaths` 相当)。
 - 詳細: @Docs docs/architecture/component_frontend.md#データ取得-キャッシュ
 
 ## 4. API ルートとエンドポイント設計
-- **API Route はなるべく最小限**  
-  - Next.js の `app/api/` 配下に API Route を配置する場合、**同一ファイルで GET/POST を分ける**。  
-  - なるべく **GraphQL エンドポイント (`/api/graphql`) を使う**。REST は `/api/health` など最小限に留める。  
-- **認証・認可**  
-  - **ミドルウェア (`middleware.ts`) でトークン検証** を行い、認証済みリクエスト以外は 401 を返す。  
-  - API Route 内で `NextResponse.redirect('/login')` は使わず、**JSON 形式でエラーコード**を返却する。  
+- **API Route はなるべく最小限**
+  - Next.js の `app/api/` 配下に API Route を配置する場合、**同一ファイルで GET/POST を分ける**。
+  - なるべく **GraphQL エンドポイント (`/api/graphql`) を使う**。REST は `/api/health` など最小限に留める。
+- **認証・認可**
+  - **ミドルウェア (`middleware.ts`) でトークン検証** を行い、認証済みリクエスト以外は 401 を返す。
+  - API Route 内で `NextResponse.redirect('/login')` は使わず、**JSON 形式でエラーコード**を返却する。
 - 詳細: @Docs docs/architecture/component_api.md#ミドルウェア-スタック
 
 ## 5. スタイリング & shadcn/ui 運用
-- **Tailwind CSS + shadcn/ui** を利用  
-  - `components/ui/` に shadcn-ui コマンドで生成したコンポーネントを配置。  
-  - **ユーティリティファースト** の Tailwind クラスを最優先で使い、`className` に極端に長い文字列を避ける場合は `cn()` ヘルパーを使う。  
-  - カラーユニバーサルデザイン: `tailwind.config.ts` の `extend.colors` にブランド色を定義し、**全体で統一する**。  
-- **グローバルCSS vs モジュールCSS**  
-  - グローバルに影響を与える CSS は `app/globals.css` のみ使用し、他は**CSS Modules (`*.module.css`)** または **shadcn/ui のテーマトークン** を使う。  
-- **アクセシビリティ**  
-  - UI コンポーネントには必ず `aria-label` や `role` 属性を付与し、**キーボードフォーカスが可能**な実装を行う。  
-  - `next/image` を使う際は、必ず `alt` 属性を指定し適切な代替テキストを提供する。  
+- **Tailwind CSS + shadcn/ui** を利用
+  - `components/ui/` に shadcn-ui コマンドで生成したコンポーネントを配置。
+  - **ユーティリティファースト** の Tailwind クラスを最優先で使い、`className` に極端に長い文字列を避ける場合は `cn()` ヘルパーを使う。
+  - カラーユニバーサルデザイン: `tailwind.config.ts` の `extend.colors` にブランド色を定義し、**全体で統一する**。
+- **グローバルCSS vs モジュールCSS**
+  - グローバルに影響を与える CSS は `app/globals.css` のみ使用し、他は**CSS Modules (`*.module.css`)** または **shadcn/ui のテーマトークン** を使う。
+- **アクセシビリティ**
+  - UI コンポーネントには必ず `aria-label` や `role` 属性を付与し、**キーボードフォーカスが可能**な実装を行う。
+  - `next/image` を使う際は、必ず `alt` 属性を指定し適切な代替テキストを提供する。
 - 詳細: @Docs docs/architecture/component_frontend.md#スタイリング-UX
 
 ## 6. パフォーマンス最適化
-- **画像最適化**  
-  - `next/image` を利用し、`width`/`height` を明示。  
-  - ドメイン制限: `next.config.js` の `images.domains` に登録済みか確認する。  
-- **コード分割**  
-  - `dynamic()` を使い、必要に応じた遅延ローディングを行う。  
-  - チャンクサイズが大きくなりすぎないよう、**共通依存は `app/layout.tsx` で一度だけ読み込む**。  
-- **フォントプリロード**  
-  - `next/font/google` などを使い、**フォントを最適化**する。  
-- **ISR/SSR 戦略**  
-  - 動的ページは可能な限り **`revalidate` オプション付き `fetch()`** で再検証を行い、ビルド時トラフィックを分散させる。  
+- **画像最適化**
+  - `next/image` を利用し、`width`/`height` を明示。
+  - ドメイン制限: `next.config.js` の `images.domains` に登録済みか確認する。
+- **コード分割**
+  - `dynamic()` を使い、必要に応じた遅延ローディングを行う。
+  - チャンクサイズが大きくなりすぎないよう、**共通依存は `app/layout.tsx` で一度だけ読み込む**。
+- **フォントプリロード**
+  - `next/font/google` などを使い、**フォントを最適化**する。
+- **ISR/SSR 戦略**
+  - 動的ページは可能な限り **`revalidate` オプション付き `fetch()`** で再検証を行い、ビルド時トラフィックを分散させる。
 - 詳細: @Docs docs/architecture/component_frontend.md#ストリーミング-パフォーマンス
 
 ## 7. テスト & CI 統合
-- **ユニットテスト**  
-  - `vitest` + React Testing Library を使い、**UI のレンダリングとイベント挙動**をテストする。  
-  - テストファイルは同ディレクトリに `*.test.tsx` または `*.spec.tsx` と命名。  
-- **E2E テスト**  
-  - Playwright を用い、`/chat` ページでメッセージ送信 → SSE ストリーム描画を検証する。  
-  - `page.waitForResponse()` ではなく `page.waitForEvent('sse')` など **ストリーミング専用検証** を行う。  
-- **Lint とフォーマット**  
-  - CI で `pnpm lint`（ESLint）、`pnpm format:check`（Prettier）を実行し、違反があればエラーとする。  
-  - `tsconfig.json` の型チェックも CI で必ず通過させる。  
+- **ユニットテスト**
+  - `vitest` + React Testing Library を使い、**UI のレンダリングとイベント挙動**をテストする。
+  - テストファイルは同ディレクトリに `*.test.tsx` または `*.spec.tsx` と命名。
+- **E2E テスト**
+  - Playwright を用い、`/chat` ページでメッセージ送信 → SSE ストリーム描画を検証する。
+  - `page.waitForResponse()` ではなく `page.waitForEvent('sse')` など **ストリーミング専用検証** を行う。
+- **Lint とフォーマット**
+  - CI で `pnpm lint`（ESLint）、`pnpm format:check`（Prettier）を実行し、違反があればエラーとする。
+  - `tsconfig.json` の型チェックも CI で必ず通過させる。
 - 詳細: @Docs docs/architecture/component_frontend.md#テスト-戦略
 
 ## 8. バージョン管理 & コミット規約
-- **ブランチ戦略**  
-  - `dev/*` → 機能開発、`main` → 安定版。各 `dev/feature-xxx` はマージPR前に必ず `dev` にマージし CI 緑を確認。  
-  - ドキュメントのみ変更は `docs/*` ブランチを切って対応可。  
-- **コミットメッセージ**  
-  - Conventional Commits を徹底: `feat`, `fix`, `docs`, `refactor`, `chore`, `ci` など。  
-  - コード変更には必ずチケット番号 or Issue リンクを含める。  
+- **ブランチ戦略**
+  - `dev/*` → 機能開発、`main` → 安定版。各 `dev/feature-xxx` はマージPR前に必ず `dev` にマージし CI 緑を確認。
+  - ドキュメントのみ変更は `docs/*` ブランチを切って対応可。
+- **コミットメッセージ**
+  - Conventional Commits を徹底: `feat`, `fix`, `docs`, `refactor`, `chore`, `ci` など。
+  - コード変更には必ずチケット番号 or Issue リンクを含める。
 - 詳細: @Docs docs/contributing.md#ブランチ戦略
 
 ## 9. デプロイ & 環境設定
-- **Next.js ビルドコマンド**  
-  - `next build` → `next export` は使わず、常に **`next start`** or Vercel/Azure Static Web Apps にデプロイ。  
-- **環境変数管理**  
-  - `.env.local`, `.env.development`, `.env.production` を正しく分け、**機密情報は Azure Key Vault** または GitHub Secrets で管理する。  
-  - `NEXT_PUBLIC_` プレフィックスが付かない環境変数は**クライアントバンドルに含まれない**。  
-- **静的ファイル配置**  
-  - `public/` 配下にはフォントや画像、robots.txt などを置き、**絶対パス (`/images/logo.png`)** で参照する。  
+- **Next.js ビルドコマンド**
+  - `next build` → `next export` は使わず、常に **`next start`** or Vercel/Azure Static Web Apps にデプロイ。
+- **環境変数管理**
+  - `.env.local`, `.env.development`, `.env.production` を正しく分け、**機密情報は Azure Key Vault** または GitHub Secrets で管理する。
+  - `NEXT_PUBLIC_` プレフィックスが付かない環境変数は**クライアントバンドルに含まれない**。
+- **静的ファイル配置**
+  - `public/` 配下にはフォントや画像、robots.txt などを置き、**絶対パス (`/images/logo.png`)** で参照する。
 - 詳細: @Docs docs/architecture/deployment.md#無料-プレミアム-デプロイ
 
 ## 10. AI生成制御 & 連携
-- **AIコード生成時の注意**  
-  - App Router 特有のフォルダ配置 (`app/**`) を壊さないように、**自動生成は必ず既存ファイルとのマージ** を意識する。  
-  - `page.tsx` の上書きではなく、**新規コンポーネント追加が必要な場合は `app/(components)/...`** に保管するよう指示する。  
-- **ルール違反時の再生成**  
-  - ルールに違反した箇所（例: `use client` の誤配置、fetch キャッシュ未指定等）があった場合は **再生成** し、最終的に遵守させる。  
-  - どうしても自動修正できない場合は短い**謝罪メッセージ**を返し、ユーザに手動修正を促す。  
+- **AIコード生成時の注意**
+  - App Router 特有のフォルダ配置 (`app/**`) を壊さないように、**自動生成は必ず既存ファイルとのマージ** を意識する。
+  - `page.tsx` の上書きではなく、**新規コンポーネント追加が必要な場合は `app/(components)/...`** に保管するよう指示する。
+- **ルール違反時の再生成**
+  - ルールに違反した箇所（例: `use client` の誤配置、fetch キャッシュ未指定等）があった場合は **再生成** し、最終的に遵守させる。
+  - どうしても自動修正できない場合は短い**謝罪メッセージ**を返し、ユーザに手動修正を促す。
 - 詳細: @Docs docs/architecture/crosscutting.md#AI-制御
 
 ---

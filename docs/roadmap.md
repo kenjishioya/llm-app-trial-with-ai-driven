@@ -113,7 +113,7 @@ curl -X POST http://localhost:8000/graphql \
 # SQLite+aiosqlite で正常動作確認済み
 
 # テスト成功 ✅
-pytest tests/ -v  # 18/18 テスト成功、69%カバレッジ達成
+cd backend && pytest tests/ -v  # 18/18 テスト成功、69%カバレッジ達成
 
 # ストリーミング機能確認 ✅
 curl -N "http://localhost:8000/graphql/stream?id=<messageId>"  # SSE配信成功
@@ -131,7 +131,7 @@ curl -N "http://localhost:8000/graphql/stream?id=<messageId>"  # SSE配信成功
 - ✅ **ドキュメント準拠**: API仕様・アーキテクチャ整合性確保
 
 **⚠️ Phase 1 残存課題（本番運用準備不足）**:
-- ❌ **テスト環境分離**: tests/test_api.py が本番DBに直接書き込み（開発用SQLiteだが問題）
+- ❌ **テスト環境分離**: backend/tests/test_api.py が本番DBに直接書き込み（開発用SQLiteだが問題）
 - ❌ **テストデータ汚染**: テスト実行でセッションが大量作成される問題を確認
 - ❌ **データベース設定**: 開発環境でもSQLite使用、本番PostgreSQL移行準備不足
 - ❌ **CI/CD未整備**: GitHub Actions, pre-commit hooks未実装
@@ -177,7 +177,10 @@ curl -N "http://localhost:8000/graphql/stream?id=<messageId>"  # SSE配信成功
 **Phase 1.5 完了条件**:
 ```bash
 # テスト環境分離確認
-pytest tests/ --create-db  # 専用DBでテスト実行、実行後自動削除
+cd backend && pytest tests/ --create-db  # 専用DBでテスト実行、実行後自動削除
+# ✅ テストDB分離、自動クリーンアップ
+# ✅ モックLLM使用、実際のAPI呼び出し回避
+# ✅ unit/integration分離
 
 # CI/CD確認
 git push origin main  # GitHub Actions緑、カバレッジ80%以上
@@ -289,7 +292,7 @@ curl -X POST http://localhost:8000/graphql \
   -d '{"query":"mutation{startDeepResearch(sessionId:\"...\", question:\"競合分析レポート\"){id}}"}'
 
 # 機能テスト成功
-pytest tests/test_deep_research.py::test_full_research_flow
+cd backend && pytest tests/test_deep_research.py::test_full_research_flow
 
 # レポート生成確認（120秒以内）
 ```

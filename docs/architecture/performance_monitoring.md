@@ -22,7 +22,7 @@ graph TB
         UI[Next.js UI]
         UI --> |SSE Connection| API
     end
-    
+
     subgraph "Backend"
         API[FastAPI GraphQL]
         RAG[RagService]
@@ -30,7 +30,7 @@ graph TB
         API --> RAG
         API --> DEEP
     end
-    
+
     subgraph "Azure Services"
         SEARCH[AI Search]
         OPENAI[Azure OpenAI]
@@ -41,7 +41,7 @@ graph TB
         DEEP --> OPENAI
         API --> DB
     end
-    
+
     subgraph "Monitoring"
         MONITOR --> |Metrics| DASHBOARD[Azure Dashboard]
         MONITOR --> |Alerts| TEAMS[Teams通知]
@@ -114,7 +114,7 @@ logger = structlog.get_logger()
 logger.info(
     "rag_search_completed",
     session_id="sess_123",
-    trace_id="trace_456", 
+    trace_id="trace_456",
     question="社内研修制度について",
     search_results_count=3,
     search_duration_ms=250,
@@ -161,13 +161,13 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 def setup_tracing():
     trace.set_tracer_provider(TracerProvider())
     tracer = trace.get_tracer(__name__)
-    
+
     # Azure Monitor へのエクスポート
     otlp_exporter = OTLPSpanExporter(
         endpoint="https://ingest-qrai-dev.monitor.azure.com/otlp/traces",
         headers={"Authorization": f"Bearer {AZURE_MONITOR_TOKEN}"}
     )
-    
+
     span_processor = BatchSpanProcessor(otlp_exporter)
     trace.get_tracer_provider().add_span_processor(span_processor)
 
@@ -177,7 +177,7 @@ async def search_documents(query: str) -> List[Document]:
     span = trace.get_current_span()
     span.set_attribute("search.query", query)
     span.set_attribute("search.top_k", 3)
-    
+
     try:
         results = await azure_search_client.search(query, top=3)
         span.set_attribute("search.results_count", len(results))
@@ -211,9 +211,9 @@ async def search_documents(query: str) -> List[Document]:
 requests
 | where timestamp > ago(1h)
 | where name contains "rag"
-| summarize 
+| summarize
     count(),
-    avg(duration), 
+    avg(duration),
     percentile(duration, 50),
     percentile(duration, 95),
     percentile(duration, 99)
@@ -223,7 +223,7 @@ by bin(timestamp, 5m)
 // エラー率監視
 requests
 | where timestamp > ago(30m)
-| summarize 
+| summarize
     total = count(),
     errors = countif(resultCode >= 400),
     error_rate = (errors * 100.0) / count()
@@ -241,7 +241,7 @@ requests
 customMetrics
 | where name == "openai_tokens_consumed"
 | summarize sum(value) by bin(timestamp, 1h)
-| render columnchart 
+| render columnchart
 ```
 
 ### 5-2 カスタムメトリクス
@@ -259,21 +259,21 @@ def setup_custom_metrics():
     )
     provider = MeterProvider(metric_readers=[metric_reader])
     set_meter_provider(provider)
-    
+
     meter = get_meter_provider().get_meter("qrai")
-    
+
     # メトリクス定義
     response_time_histogram = meter.create_histogram(
-        "rag_response_time", 
+        "rag_response_time",
         description="RAG response time in milliseconds",
         unit="ms"
     )
-    
+
     token_counter = meter.create_counter(
         "openai_tokens_consumed",
         description="Azure OpenAI tokens consumed"
     )
-    
+
     search_results_gauge = meter.create_up_down_counter(
         "search_results_count",
         description="Number of search results returned"
@@ -366,7 +366,7 @@ az monitor action-group create \
           "timeRange": "PT1H"
         },
         {
-          "type": "metric", 
+          "type": "metric",
           "query": "requests | summarize avg(duration), percentile(duration, 95)",
           "visualization": "timechart",
           "timeRange": "PT4H"
@@ -384,7 +384,7 @@ az monitor action-group create \
         },
         {
           "type": "metric",
-          "resource": "/subscriptions/.../cognitiveServices/oai-qrai-dev", 
+          "resource": "/subscriptions/.../cognitiveServices/oai-qrai-dev",
           "metricName": "TotalTokenCalls",
           "aggregation": "Total"
         }
@@ -483,4 +483,4 @@ AzureCosts
 
 ---
 
-*Last updated: 2025-06-03* 
+*Last updated: 2025-06-03*

@@ -5,6 +5,9 @@
 .env.test.local
 .env.production.local
 .env.production
+.env.development
+.env.test
+.env.staging
 
 # シークレット情報
 *.pem

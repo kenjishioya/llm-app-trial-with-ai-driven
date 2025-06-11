@@ -1,1 +1,0 @@
-# QRAI MVP API テストパッケージ

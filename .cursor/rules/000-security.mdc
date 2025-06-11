@@ -1,12 +1,12 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: false
 ---
 ---
 description: >
   QRAI プロジェクトにおける **最優先セキュリティルール**。
-  全ファイルに適用され、他のルールよりも優先されます。  
+  全ファイルに適用され、他のルールよりも優先されます。
   詳細な背景や運用手順は `docs/architecture/crosscutting.md` を参照してください。
 alwaysApply: true
 ---
@@ -17,77 +17,77 @@ alwaysApply: true
 > 改めて「ルール違反」として拒否し、結果がルールを満たすまで再生成してください。
 
 ## 1. 秘密情報・認証情報
-- **ハードコーディング禁止**  
-  - API キー・パスワード・トークン等をソースコードに直書きしない。  
-  - もしプレースホルダが必要なら `"<SECRET_NAME>"` とだけ記す。  
-- **環境変数または Key Vault を使用**  
-  - `os.getenv()` または Azure Key Vault（開発状況に応じて）から取得する。  
+- **ハードコーディング禁止**
+  - API キー・パスワード・トークン等をソースコードに直書きしない。
+  - もしプレースホルダが必要なら `"<SECRET_NAME>"` とだけ記す。
+- **環境変数または Key Vault を使用**
+  - `os.getenv()` または Azure Key Vault（開発状況に応じて）から取得する。
 - 詳細: @Docs docs/architecture/crosscutting.md#セキュリティ設計
 
 ## 2. バージョン管理
-- **秘密ファイルはコミット禁止**  
-  - `.env`、`*.pem`、`*.key`、`*.pfx` は必ず `.gitignore` に登録済みであること。  
-- **Secret が含まれる提案は拒否**  
-  - AI が秘密情報を出力しようとした場合は「ルールに違反している」として再生成または停止。  
+- **秘密ファイルはコミット禁止**
+  - `.env`、`*.pem`、`*.key`、`*.pfx` は必ず `.gitignore` に登録済みであること。
+- **Secret が含まれる提案は拒否**
+  - AI が秘密情報を出力しようとした場合は「ルールに違反している」として再生成または停止。
 - 詳細: @Docs docs/operational_runbook.md#運用
 
 ## 3. 通信 & 暗号化
-- **HTTPS/TLS1.2+ のみ使用**  
-  - 外部 API コールや WebSocket/SSE は `https://`/`wss://` で行う。  
-  - `http://`例示は禁止。  
-- **データベース接続は暗号化必須**  
-  - PostgreSQL は `sslmode=require`、httpx は `verify_ssl=True` をデフォルトとする。  
+- **HTTPS/TLS1.2+ のみ使用**
+  - 外部 API コールや WebSocket/SSE は `https://`/`wss://` で行う。
+  - `http://`例示は禁止。
+- **データベース接続は暗号化必須**
+  - PostgreSQL は `sslmode=require`、httpx は `verify_ssl=True` をデフォルトとする。
 - 詳細: @Docs docs/architecture/crosscutting.md#セキュリティ設計
 
 ## 4. アクセス制御 & 最小権限
-- **IAM ロールは最小権限で**  
-  - 例: Container App → `AI Search Data Reader` など必要最小限のロールのみ。  
-- **ワイルドカード権限や Contributor 権限の例示は禁止**  
-  - Client-Secret 認証でなく Managed Identity を使うサンプルを示すこと。  
+- **IAM ロールは最小権限で**
+  - 例: Container App → `AI Search Data Reader` など必要最小限のロールのみ。
+- **ワイルドカード権限や Contributor 権限の例示は禁止**
+  - Client-Secret 認証でなく Managed Identity を使うサンプルを示すこと。
 - 詳細: @Docs docs/architecture/crosscutting.md#セキュリティ設計
 
 ## 5. 入力検証・インジェクション対策
-- **全ての外部入力をバリデーション**  
-  - FastAPI は Pydantic、TypeScript は Zod を使用し、ホワイトリスト検証を徹底する。  
-- **SQL は必ずパラメータ化クエリ**  
-  - 文字列連結によるクエリ作成は禁止。  
-- **XSS 対策**  
-  - Markdown→HTML 変換時は必ずエスケープして出力する。  
+- **全ての外部入力をバリデーション**
+  - FastAPI は Pydantic、TypeScript は Zod を使用し、ホワイトリスト検証を徹底する。
+- **SQL は必ずパラメータ化クエリ**
+  - 文字列連結によるクエリ作成は禁止。
+- **XSS 対策**
+  - Markdown→HTML 変換時は必ずエスケープして出力する。
 - 詳細: @Docs docs/architecture/crosscutting.md#セキュリティ設計
 
 ## 6. エラーハンドリング & ログ
-- **秘密情報をログに出力しない**  
-  - 認証トークン、パスワードなどを含めてはならない。  
-- **詳細なエラー情報はサーバ側に閉じる**  
-  - クライアントには一般的なエラーメッセージのみ返却し、スタックトレースは出力しない。  
-- **構造化ログを利用する**  
-  - `structlog` などを使い、`session_id` や `trace_id` をタグとして付与する。  
+- **秘密情報をログに出力しない**
+  - 認証トークン、パスワードなどを含めてはならない。
+- **詳細なエラー情報はサーバ側に閉じる**
+  - クライアントには一般的なエラーメッセージのみ返却し、スタックトレースは出力しない。
+- **構造化ログを利用する**
+  - `structlog` などを使い、`session_id` や `trace_id` をタグとして付与する。
 - 詳細: @Docs docs/architecture/crosscutting.md#セキュリティ設計
 
 ## 7. レートリミット & 悪用防止
-- **開発環境でのレート制限**  
-  - 20 req/min/IP を超えた場合は 429 を返却し、`Retry-After` ヘッダを付与する。  
-- **本番環境ではより厳格に**  
-  - Prod 用ドキュメントで設定するレートリミットを遵守すること。  
+- **開発環境でのレート制限**
+  - 20 req/min/IP を超えた場合は 429 を返却し、`Retry-After` ヘッダを付与する。
+- **本番環境ではより厳格に**
+  - Prod 用ドキュメントで設定するレートリミットを遵守すること。
 - 詳細: @Docs docs/architecture/crosscutting.md#クロスカッティング
 
 ## 8. 依存関係管理
-- **公式レジストリのみ使用**  
-  - Python は PyPI、npm は npm registry。それ以外のダウンロード・インストールスクリプト（`curl | bash`）は禁止。  
-- **バージョン固定**  
-  - `~=` や `^` などでバージョンを固定し、意図しないバージョンアップを防止する。  
-- **脆弱性チェックを実施**  
-  - `pip-audit` や `npm audit` を定期的に実行し、重大な脆弱性があれば即時対応する。  
+- **公式レジストリのみ使用**
+  - Python は PyPI、npm は npm registry。それ以外のダウンロード・インストールスクリプト（`curl | bash`）は禁止。
+- **バージョン固定**
+  - `~=` や `^` などでバージョンを固定し、意図しないバージョンアップを防止する。
+- **脆弱性チェックを実施**
+  - `pip-audit` や `npm audit` を定期的に実行し、重大な脆弱性があれば即時対応する。
 - 詳細: @Docs docs/architecture/crosscutting.md#運用
 
 ## 9. データプライバシー
-- **古いデータの削除**  
-  - 180 日以上経過したセッション・メッセージは削除、もしくは匿名化・アーカイブする。  
-- **PII のマスキング**  
-  - LLM へ送信する前に、名前やメールアドレスなど個人を特定できる情報を必ずマスキングする。  
+- **古いデータの削除**
+  - 180 日以上経過したセッション・メッセージは削除、もしくは匿名化・アーカイブする。
+- **PII のマスキング**
+  - LLM へ送信する前に、名前やメールアドレスなど個人を特定できる情報を必ずマスキングする。
 - 詳細: @Docs docs/architecture/crosscutting.md#クロスカッティング
 
 ---
 
-**違反時の対応:**  
+**違反時の対応:**
 - AI がこれらの項目に抵触するコードを生成しようとした場合は**再生成**し、まだ修正できない場合は**「セキュリティルール違反」**として短い謝罪メッセージを返し、出力を停止すること。
