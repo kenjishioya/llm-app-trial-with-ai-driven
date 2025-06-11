@@ -13,7 +13,9 @@ class AskInput:
     """質問入力"""
 
     question: str
-    session_id: Optional[strawberry.ID] = None
+    session_id: Optional[strawberry.ID] = strawberry.field(
+        name="sessionId", default=None
+    )
     deep_research: bool = False
 
 

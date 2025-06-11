@@ -80,6 +80,71 @@ class OpenRouterProvider(ILLMProvider):
             logger.error("OpenRouter unexpected error", error=str(e))
             raise LLMError(f"OpenRouter error: {str(e)}")
 
+    async def stream(
+        self,
+        prompt: str,
+        system_message: Optional[str] = None,
+        model: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        **kwargs,
+    ) -> AsyncGenerator[LLMResponse, None]:
+        """ストリーミングレスポンス生成（LLMServiceインターフェース準拠）"""
+        try:
+            # システムメッセージと組み合わせたメッセージリスト作成
+            messages = []
+            if system_message:
+                messages.append({"role": "system", "content": system_message})
+            messages.append({"role": "user", "content": prompt})
+
+            payload = {
+                "model": model or self.default_model,
+                "messages": messages,
+                "max_tokens": max_tokens or 1000,
+                "temperature": temperature or 0.7,
+                "stream": True,
+            }
+
+            async with self.client.stream(
+                "POST", "/chat/completions", json=payload
+            ) as response:
+                response.raise_for_status()
+
+                full_content = ""
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data_str = line[6:]  # "data: " を除去
+                        if data_str.strip() == "[DONE]":
+                            break
+
+                        try:
+                            data = json.loads(data_str)
+                            if "choices" in data and len(data["choices"]) > 0:
+                                delta = data["choices"][0].get("delta", {})
+                                if "content" in delta:
+                                    content: str = delta["content"]
+                                    full_content += content
+
+                                    # LLMResponseとして返却
+                                    yield LLMResponse(
+                                        content=content,
+                                        provider=self.provider_name,
+                                        model=model or self.default_model,
+                                        usage=None,  # ストリーミング中は使用量不明
+                                        metadata={"chunk": True},
+                                    )
+                        except json.JSONDecodeError:
+                            continue
+
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "OpenRouter streaming HTTP error", status_code=e.response.status_code
+            )
+            raise LLMError(f"OpenRouter streaming error: {e.response.status_code}")
+        except Exception as e:
+            logger.error("OpenRouter streaming unexpected error", error=str(e))
+            raise LLMError(f"OpenRouter streaming error: {str(e)}")
+
     async def stream_generate(  # type: ignore[override]
         self,
         prompt: str,
