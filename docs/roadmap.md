@@ -216,15 +216,15 @@ python scripts/validate_env.py  # 全必須環境変数確認
 
 #### 1-2D 統合テスト
 * [ ] **Vitest設定**: React Testing Library、ユニットテスト
-* [ ] **E2E テスト基盤**: Playwright設定、基本フロー（質問→応答）テスト
+* ⏸️ **E2E テスト基盤**: Playwright設定、基本フロー（質問→応答）テスト（保留中）
 
 **Phase 2 完了条件**:
 ```bash
 # ブラウザアクセス確認
 open http://localhost:3000
 
-# E2E テスト成功
-npx playwright test tests/e2e/basic-chat.spec.ts
+⏸️ # E2E テスト成功（保留中）
+⏸️ npx playwright test tests/e2e/basic-chat.spec.ts
 
 # フロントエンドテスト成功
 npm test
