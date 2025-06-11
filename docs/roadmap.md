@@ -12,10 +12,9 @@
 | **Phase 1** – API基盤 + DB + RAG ✅     | FastAPI + GraphQL + Cosmos DB + 基本RAG + ユニットテスト | GraphQL ask クエリ成功 + セッション保存確認 + pytest緑           |
 | **Phase 1.5** – 本番運用準備 ✅           | テスト環境分離 + CI/CD基盤 + 環境設定強化                   | テストDB分離 + GitHub Actions緑 + 環境変数管理              |
 | **Phase 2** – UI + ストリーミング ✅        | Next.js チャット UI + SSE ストリーミング + 統合テスト           | ブラウザ質問→リアルタイム応答表示 + フロントエンドテスト緑 + ⏸️E2E保留       |
-| **Phase 3** – セッション管理 & 履歴        | セッション一覧・復元・削除 + 履歴UI + E2Eテスト拡張              | セッション管理全機能 + 履歴画面 + E2Eテスト緑                     |
+| **Phase 3** – RAGのAzure AI Search統合   | Azure AI Search統合 + ドキュメントアップロード + 検索機能強化      | AI Search経由でのRAG検索 + テストドキュメント検索確認            |
 | **Phase 4** – Deep Research       | 多段階リサーチエージェント + 進捗表示 + 機能テスト                  | `deepResearch=true` で構造化レポート生成 + 機能テスト緑          |
-| **Phase 5** – パフォーマンス & 可観測性      | 負荷テスト + 監視ダッシュボード + メトリクス可視化                   | Locust p95<10s + Azure Monitor ダッシュボード稼働           |
-| **Phase 6** – 運用準備 & コストガード       | Budget アラート + バックアップ + 障害演習 + 最適化              | 月額<$5確認 + Runbook検証 + 障害演習完了                    |
+| **Phase 5** – UI改善とセッション管理        | UI/UX改善 + セッション履歴 + E2Eテスト拡張                   | セッション管理全機能 + 改善されたUI + E2Eテスト緑               |
 
 詳細な監視・パフォーマンス設定については **[architecture/performance_monitoring.md](architecture/performance_monitoring.md)** を参照してください。
 
@@ -235,32 +234,39 @@ npm test  # 76テスト全成功、高カバレッジ達成
 
 ---
 
-### Phase 3: セッション管理 & 履歴
+### Phase 3: RAGのAzure AI Search統合
 
-#### 1-3A セッション機能拡張
-* [ ] **セッション CRUD API**: 一覧取得、詳細取得、削除、更新
-* [ ] **GraphQL sessions resolver**: 履歴取得、フィルタリング、ソート
-* [ ] **セッション復元機能**: 過去チャット復元、メッセージ履歴表示
+#### 1-3A Azure AI Search 統合基盤
+* [ ] **SearchService統合**: Azure AI Search クライアント、検索インデックス作成
+* [ ] **ドキュメントパーサー**: PDF, DOCX, TXT対応、テキスト抽出機能
+* [ ] **インデックス管理**: スキーマ定義、フィールドマッピング、アナライザー設定
+* [ ] **検索機能統合**: 既存RAGServiceとAI Search統合、ハイブリッド検索対応
 
-#### 1-3B 履歴 UI
-* [ ] **SessionList コンポーネント**: サイドバー、セッション一覧表示
-* [ ] **セッション切り替え**: クリック選択、アクティブ状態表示
-* [ ] **セッション削除**: 削除確認ダイアログ、楽観的UI更新
+#### 1-3B ドキュメントアップロード機能
+* [ ] **アップロードAPI**: GraphQL mutation、ファイル受信・処理パイプライン
+* [ ] **ストレージ統合**: Azure Blob Storage、ファイル保存・管理
+* [ ] **チャンク処理**: ドキュメント分割、メタデータ付与、インデックス投入
+* [ ] **アップロードUI**: ドラッグ&ドロップ、進捗表示、エラーハンドリング
 
-#### 1-3C E2E テスト拡張
-* [ ] **セッション管理テスト**: 作成→メッセージ→切り替え→削除フロー
-* [ ] **UI操作テスト**: サイドバー操作、履歴表示確認
-* [ ] **データ整合性テスト**: DB保存内容とUI表示の一致確認
+#### 1-3C テストドキュメント準備・検証
+* [ ] **テストドキュメント収集**: 技術資料、FAQ、マニュアル等のサンプル準備
+* [ ] **インデックス投入**: テストドキュメントの自動アップロード・インデックス化
+* [ ] **検索品質検証**: 検索精度テスト、関連性スコア、引用機能確認
+* [ ] **統合テスト**: RAG機能とAI Search統合、E2Eテスト拡張
 
 **Phase 3 完了条件**:
 ```bash
-# セッション管理全機能確認
-curl http://localhost:8000/graphql -d '{"query":"query{sessions{id title createdAt}}"}'
+# Azure AI Search 接続確認
+curl http://localhost:8000/graphql -d '{"query":"query{searchDocuments(query:\"テスト\"){id title content score}}"}'
 
-# E2E テスト拡張成功
-npx playwright test tests/e2e/session-management.spec.ts
+# ドキュメントアップロード確認
+curl -X POST http://localhost:8000/graphql/upload \
+  -F "file=@test-document.pdf" \
+  -F "metadata={\"title\":\"テスト文書\",\"category\":\"manual\"}"
 
-# セッション履歴表示確認
+# RAG検索品質確認
+# AI Search経由でのドキュメント検索 + LLM回答生成
+# 引用リンク、関連性スコア表示確認
 ```
 
 ---
@@ -302,65 +308,81 @@ cd backend && pytest tests/test_deep_research.py::test_full_research_flow
 
 ---
 
-### Phase 5: パフォーマンス & 可観測性
+### Phase 5: UI改善とセッション管理
 
-#### 1-5A パフォーマンステスト
-* [ ] **Locust スクリプト**: 5ユーザー × 5分負荷シナリオ
-* [ ] **レイテンシ測定**: RAG応答 p95 < 10秒、Deep Research < 120秒
-* [ ] **スループット測定**: 20 RPS目標、QPS制限テスト
+#### 1-5A UI/UX改善
+* [ ] **レスポンシブ改善**: モバイル最適化、タブレット対応、操作性向上
+* [ ] **アクセシビリティ**: WAI-ARIA準拠、キーボードナビゲーション、スクリーンリーダー対応
+* [ ] **パフォーマンス最適化**: コンポーネント分割、Lazy Loading、バンドルサイズ削減
+* [ ] **テーマ・デザインシステム**: ダークモード、カラーパレット、統一デザイン
 
-#### 1-5B 監視システム
-* [ ] **OpenTelemetry統合**: fastapi-opentelemetry、分散トレース
-* [ ] **構造化ログ**: structlog、session_id/trace_id連携
-* [ ] **カスタムメトリクス**: Token使用量、検索回数、エラー率
+#### 1-5B セッション管理機能拡張
+* [ ] **セッション CRUD API**: 一覧取得、詳細取得、削除、更新、タイトル編集
+* [ ] **GraphQL sessions resolver**: 履歴取得、フィルタリング、ソート、検索機能
+* [ ] **セッション復元機能**: 過去チャット復元、メッセージ履歴表示、ブックマーク
+* [ ] **履歴UI改善**: SessionList強化、セッション切り替え、削除確認ダイアログ
 
-#### 1-5C Azure Monitor 統合
-* [ ] **Log Analytics クエリ**: パフォーマンス分析、エラー検出
-* [ ] **ダッシュボード作成**: レイテンシ、スループット、リソース使用率
-* [ ] **アラート設定**: SLA違反、異常検出、通知設定
+#### 1-5C E2E テスト拡張・品質保証
+* [ ] **セッション管理テスト**: 作成→メッセージ→切り替え→削除フロー
+* [ ] **UI操作テスト**: サイドバー操作、履歴表示、レスポンシブ確認
+* [ ] **アクセシビリティテスト**: axe-core統合、WCAG準拠チェック
+* [ ] **パフォーマンステスト**: Lighthouse CI、Core Web Vitals測定
 
 **Phase 5 完了条件**:
 ```bash
-# 負荷テスト実行
-locust -f tests/load/chat_scenario.py --host=http://localhost:8000
+# セッション管理全機能確認
+curl http://localhost:8000/graphql -d '{"query":"query{sessions{id title createdAt}}"}'
 
-# p95レイテンシ確認
-curl "https://api.loganalytics.io/v1/workspaces/.../query" \
-  -d "query=requests | summarize percentile(duration, 95)"
+# E2E テスト拡張成功
+npx playwright test tests/e2e/session-management.spec.ts
+npx playwright test tests/e2e/responsive.spec.ts
 
-# ダッシュボード表示確認
+# アクセシビリティ・パフォーマンステスト
+npm run test:a11y  # axe-core テスト
+npm run test:lighthouse  # Lighthouse CI
+
+# UI改善確認（レスポンシブ、ダークモード等）
 ```
 
 ---
 
-### Phase 6: 運用準備 & コストガード
+---
 
-#### 1-6A コスト管理
-* [ ] **Budget アラート**: Azure Cost Management、$5予算80%通知
-* [ ] **コスト監視**: Token使用量追跡、AI Search容量監視
-* [ ] **最適化実装**: プロンプト短縮、キャッシュ戦略、インデックス圧縮
+## 📝 非機能要件メモ（将来対応予定）
 
-#### 1-6B バックアップ & 復旧
-* [ ] **データバックアップ**: pg_dump自動化、AI Searchインデックスエクスポート
-* [ ] **災害復旧手順**: Runbook作成、復旧シナリオテスト
-* [ ] **障害演習**: AI Search停止、OpenAI制限、DB接続失敗対応
+> **注意**: 以下の非機能要件は現在のロードマップから外していますが、本番運用時には検討が必要な項目です。
 
-#### 1-6C 運用ドキュメント
-* [ ] **Runbook完成**: operational_runbook.md実装検証
-* [ ] **トラブルシューティング**: よくある問題と解決法まとめ
-* [ ] **スケーリング戦略**: 無料枠→有料枠移行計画
+### パフォーマンス & 可観測性
+#### パフォーマンステスト
+* **Locust スクリプト**: 5ユーザー × 5分負荷シナリオ
+* **レイテンシ測定**: RAG応答 p95 < 10秒、Deep Research < 120秒
+* **スループット測定**: 20 RPS目標、QPS制限テスト
 
-**Phase 6 完了条件**:
-```bash
-# コスト確認（月額$5以内）
-az consumption budget show --budget-name "qrai-dev-budget"
+#### 監視システム
+* **OpenTelemetry統合**: fastapi-opentelemetry、分散トレース
+* **構造化ログ**: structlog、session_id/trace_id連携
+* **カスタムメトリクス**: Token使用量、検索回数、エラー率
 
-# 障害演習成功
-python scripts/disaster_drill.py --scenario ai_search_down
+#### Azure Monitor 統合
+* **Log Analytics クエリ**: パフォーマンス分析、エラー検出
+* **ダッシュボード作成**: レイテンシ、スループット、リソース使用率
+* **アラート設定**: SLA違反、異常検出、通知設定
 
-# Runbook検証完了
-python scripts/verify_runbook.py --all-scenarios
-```
+### 運用準備 & コストガード
+#### コスト管理
+* **Budget アラート**: Azure Cost Management、$5予算80%通知
+* **コスト監視**: Token使用量追跡、AI Search容量監視
+* **最適化実装**: プロンプト短縮、キャッシュ戦略、インデックス圧縮
+
+#### バックアップ & 復旧
+* **データバックアップ**: pg_dump自動化、AI Searchインデックスエクスポート
+* **災害復旧手順**: Runbook作成、復旧シナリオテスト
+* **障害演習**: AI Search停止、OpenAI制限、DB接続失敗対応
+
+#### 運用ドキュメント
+* **Runbook完成**: operational_runbook.md実装検証
+* **トラブルシューティング**: よくある問題と解決法まとめ
+* **スケーリング戦略**: 無料枠→有料枠移行計画
 
 ---
 
@@ -369,14 +391,13 @@ python scripts/verify_runbook.py --all-scenarios
 ### 🎯 最終MVP完了条件
 
 * [ ] `docker compose up` でローカル起動し UI で質問→回答（5分以内）
-* [ ] GitHub Actions CI 緑（unit, integration, e2e, lint, plan, what-if）
-* [ ] Azure Portal でリソース状態**Running** & コスト < $5/月
-* [ ] Runbook 手順で AI Search 容量 45MB を検知し対処実演済み
-* [ ] README でオンボーディング所要時間 ≤ 15min（実測）
-* [ ] セッション管理：作成・一覧・削除・復元が動作
+* [ ] GitHub Actions CI 緑（unit, integration, e2e, lint）
+* [ ] Azure AI Search統合：テストドキュメント検索→RAG回答生成
+* [ ] ドキュメントアップロード：PDF/DOCX→AI Search インデックス投入
+* [ ] セッション管理：作成・一覧・削除・復元・履歴表示が動作
 * [ ] Deep Research：「競合分析」で構造化レポート生成（120秒以内）
-* [ ] パフォーマンス：Locust負荷テスト p95レイテンシ < 10秒
-* [ ] 可観測性：Azure Monitor ダッシュボードでメトリクス確認
+* [ ] UI改善：レスポンシブ、アクセシビリティ、ダークモード対応
+* [ ] README でオンボーディング所要時間 ≤ 15min（実測）
 
 ### 📋 品質ゲート
 
@@ -384,10 +405,11 @@ python scripts/verify_runbook.py --all-scenarios
 | ---------- | ------------------------------- | ------------- |
 | **テストカバレッジ** | Backend pytest line coverage   | > 80%         |
 |            | Frontend Vitest coverage       | > 70%         |
-| **パフォーマンス** | RAG応答時間 p95                    | < 10秒         |
-|            | Deep Research完了時間 p95         | < 120秒        |
+| **機能品質**    | RAG応答時間                        | < 30秒         |
+|            | Deep Research完了時間              | < 120秒        |
+|            | ドキュメント検索精度                     | 関連性スコア > 0.7  |
 | **可用性**     | E2E テスト成功率                     | 100%          |
-| **コスト**     | 月間Azure利用料金                    | < $5          |
+| **アクセシビリティ** | axe-core violations             | 0 violations  |
 | **コード品質**   | ESLint/Ruff 警告                  | 0 warnings    |
 
 ---
@@ -399,11 +421,9 @@ graph TD
     P0[Phase 0: 基盤 & CI/CD] --> P1[Phase 1: API + DB + RAG ✅]
     P1 --> P1_5[Phase 1.5: 本番運用準備 ✅]
     P1_5 --> P2[Phase 2: UI + ストリーミング ✅]
-    P1_5 --> P3[Phase 3: セッション管理]
-    P2 --> P3
+    P2 --> P3[Phase 3: RAG + AI Search統合]
     P3 --> P4[Phase 4: Deep Research]
-    P4 --> P5[Phase 5: パフォーマンス]
-    P5 --> P6[Phase 6: 運用準備]
+    P4 --> P5[Phase 5: UI改善 + セッション管理]
 
     style P0 fill:#e1f5fe
     style P1 fill:#c8e6c9
@@ -412,12 +432,12 @@ graph TD
     style P3 fill:#fff3e0
     style P4 fill:#fce4ec
     style P5 fill:#f1f8e9
-    style P6 fill:#e0f2f1
 ```
 
 **並行実装可能性**:
-- Phase 1完了後：フロントエンド（Phase 2）とセッション管理API（Phase 3）は並行開発可能
-- Phase 2-3完了後：Deep Research（Phase 4）と監視設定（Phase 5前半）は並行開発可能
+- Phase 2完了後：Azure AI Search統合（Phase 3）の開発に集中
+- Phase 3完了後：Deep Research（Phase 4）とUI改善（Phase 5-A）は並行開発可能
+- Phase 4完了後：セッション管理拡張（Phase 5-B）とE2Eテスト（Phase 5-C）は並行開発可能
 
 ---
 
