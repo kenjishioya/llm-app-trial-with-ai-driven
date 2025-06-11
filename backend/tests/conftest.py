@@ -38,32 +38,103 @@ def db_session():
         connect_args={"check_same_thread": False},
     )
 
-    # テーブル作成（同期）
+    # テーブル作成戦略：Alembic優先、フォールバックでSQLAlchemy
     print(f"Creating tables for database: {test_db_path}")
     print(f"Available tables in metadata: {list(Base.metadata.tables.keys())}")
 
-    # SQLAlchemy metadata からテーブル作成
-    Base.metadata.create_all(bind=engine)
-
-    # Alembicマイグレーションも実行（確実にテーブル作成）
+    # 1. まずAlembicマイグレーションを試行
+    alembic_success = False
     try:
         from alembic.config import Config
         from alembic import command
 
-        # 一時的なalembic.iniを作成
-        alembic_cfg = Config()
-        alembic_cfg.set_main_option("script_location", "migrations")
-        alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{test_db_path}")
+        # 一時的なalembic.iniファイルを作成
+        alembic_ini_content = """
+[alembic]
+script_location = migrations
+sqlalchemy.url = {database_url}
 
-        # マイグレーション実行
-        command.upgrade(alembic_cfg, "head")
-        print("Alembic migration completed successfully")
+[loggers]
+keys = root,sqlalchemy,alembic
+
+[handlers]
+keys = console
+
+[formatters]
+keys = generic
+
+[logger_root]
+level = WARN
+handlers = console
+qualname =
+
+[logger_sqlalchemy]
+level = WARN
+handlers =
+qualname = sqlalchemy.engine
+
+[logger_alembic]
+level = INFO
+handlers =
+qualname = alembic
+
+[handler_console]
+class = StreamHandler
+args = (sys.stderr,)
+level = NOTSET
+formatter = generic
+
+[formatter_generic]
+format = %(levelname)-5.5s [%(name)s] %(message)s
+datefmt = %H:%M:%S
+""".format(
+            database_url=f"sqlite:///{test_db_path}"
+        )
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
+            f.write(alembic_ini_content)
+            temp_ini_path = f.name
+
+        try:
+            # Alembic設定読み込み
+            alembic_cfg = Config(temp_ini_path)
+            alembic_cfg.set_main_option("script_location", "migrations")
+            alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{test_db_path}")
+
+            # マイグレーション実行
+            command.upgrade(alembic_cfg, "head")
+            print("✅ Alembic migration completed successfully")
+            alembic_success = True
+        finally:
+            # 一時iniファイル削除
+            if os.path.exists(temp_ini_path):
+                os.unlink(temp_ini_path)
+
     except Exception as e:
-        print(f"Alembic migration failed: {e}")
-        # Alembicが失敗してもテストは継続
-        pass
+        print(f"⚠️ Alembic migration failed: {e}")
+        print("Falling back to SQLAlchemy metadata.create_all()")
 
-    print("Tables created successfully")
+    # 2. Alembicが失敗した場合、SQLAlchemy metadata でテーブル作成
+    if not alembic_success:
+        try:
+            Base.metadata.create_all(bind=engine)
+            print("✅ SQLAlchemy metadata.create_all() completed")
+        except Exception as e:
+            print(f"❌ SQLAlchemy table creation also failed: {e}")
+            raise
+
+    # 3. テーブル作成確認
+    from sqlalchemy import text
+
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
+        tables = [row[0] for row in result.fetchall()]
+        print(f"Created tables: {tables}")
+
+        if "sessions" not in tables or "messages" not in tables:
+            raise RuntimeError(f"Required tables not found. Available: {tables}")
+
+    print("✅ Database setup completed successfully")
 
     # セッション作成
     SessionLocal = sessionmaker(
