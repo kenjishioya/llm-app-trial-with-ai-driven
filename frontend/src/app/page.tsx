@@ -1,7 +1,19 @@
+"use client";
+
 import React from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/components/providers/SessionProvider";
 
 export default function HomePage() {
+  const router = useRouter();
+  const { createSession, isCreating } = useSession();
+
+  const handleStartChat = async () => {
+    const session = await createSession("新しいチャット");
+    if (session) {
+      router.push("/chat");
+    }
+  };
   return (
     <div className="flex min-h-full flex-col bg-white">
       <main className="flex-1">
@@ -19,12 +31,13 @@ export default function HomePage() {
             </p>
 
             <div className="mt-10 flex items-center justify-center gap-x-6">
-              <Link
-                href="/chat"
-                className="rounded-md bg-gray-900 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-800"
+              <button
+                onClick={handleStartChat}
+                disabled={isCreating}
+                className="rounded-md bg-gray-900 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 disabled:opacity-50"
               >
-                チャットを開始
-              </Link>
+                {isCreating ? "作成中..." : "チャットを開始"}
+              </button>
               <a
                 href="#features"
                 className="text-sm font-semibold leading-6 text-gray-900"

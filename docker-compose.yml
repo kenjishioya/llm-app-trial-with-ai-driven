@@ -10,29 +10,14 @@ services:
     container_name: qrai_backend
     ports:
       - "8000:8000"
+    env_file:
+      - .env.development
     environment:
-      # Docker/コンテナ専用設定
+      # Docker/コンテナ専用設定（Docker Composeでのみ必要な設定）
       - PYTHONPATH=/app
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
-      # Database Configuration
-      - DATABASE_URL=postgresql+asyncpg://qrai_user:dev_password_123@postgres:5432/qrai_dev
-      # Application Settings
-      - ENVIRONMENT=development
-      - LOG_LEVEL=DEBUG
-      - PORT=8000
-      # API Keys (Development用ダミー値)
-      - OPENROUTER_API_KEY=dummy_openrouter_key_for_dev
-      - GOOGLE_AI_API_KEY=dummy_google_ai_key_for_dev
-      # Security Settings (Development用)
-      - JWT_SECRET_KEY=dev_jwt_secret_key_1234567890123456789012345678901234567890
-      - SESSION_SECRET_KEY=dev_session_secret_key_1234567890123456789012345678901234567890
-      # Azure Settings (Development用ダミー値)
-      - AZURE_OPENAI_ENDPOINT=https://dummy-dev.openai.azure.com/
-      - AZURE_OPENAI_API_KEY=dummy_azure_openai_key_for_dev
-      - AZURE_SEARCH_ENDPOINT=https://dummy-dev.search.windows.net/
-      - AZURE_SEARCH_API_KEY=dummy_azure_search_key_for_dev
-      - AZURE_KEYVAULT_URL=https://dummy-dev.vault.azure.net/
+
     volumes:
       - ./backend:/app
       - backend_cache:/root/.cache

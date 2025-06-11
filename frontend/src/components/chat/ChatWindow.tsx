@@ -5,6 +5,7 @@ import MessageBubble from "./MessageBubble";
 import InputForm from "./InputForm";
 import { LoadingMessage } from "./LoadingSpinner";
 import { useAskMutation, AskInput } from "@/generated/graphql";
+import { useChatStream } from "@/hooks/useChatStream";
 
 // メッセージ型定義（GraphQL型に合わせて拡張）
 interface Message {
@@ -38,11 +39,26 @@ export default function ChatWindow({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // SSE ストリーミングフック
+  const { streamState, startStream, stopStream, resetStream } = useChatStream();
+
   // GraphQL ask mutation フック
   const [askMutation, { loading: mutationLoading, error: mutationError }] =
     useAskMutation({
-      onCompleted: () => {
-        // ストリーミング開始の処理はここで行う予定
+      onCompleted: (data) => {
+        console.log("✅ Ask mutation completed:", data);
+
+        // ストリーミング開始
+        if (data.ask.messageId) {
+          console.log(
+            "🚀 Starting SSE stream for messageId:",
+            data.ask.messageId,
+          );
+          startStream(data.ask.messageId, data.ask.sessionId || sessionId);
+        } else {
+          console.warn("⚠️ No messageId returned from ask mutation");
+          setIsLoading(false);
+        }
       },
       onError: (error) => {
         console.error("Ask mutation error:", error);
@@ -59,6 +75,103 @@ export default function ChatWindow({
       },
     });
 
+  // SSE ストリーミング状態の監視・メッセージ更新
+  useEffect(() => {
+    if (streamState.isStreaming && streamState.currentMessage) {
+      // ストリーミング中のメッセージを更新または作成
+      setMessages((prev) => {
+        const lastMessage = prev[prev.length - 1];
+
+        // 最後のメッセージがAIからのストリーミングメッセージの場合は更新
+        if (
+          lastMessage &&
+          lastMessage.role === "assistant" &&
+          lastMessage.isStreaming &&
+          streamState.messageId &&
+          lastMessage.id === `streaming-${streamState.messageId}`
+        ) {
+          return prev.map((msg, index) =>
+            index === prev.length - 1
+              ? { ...msg, content: streamState.currentMessage }
+              : msg,
+          );
+        } else {
+          // 新しいストリーミングメッセージを作成
+          const streamingMessage: Message = {
+            id: `streaming-${streamState.messageId || Date.now()}`,
+            content: streamState.currentMessage,
+            role: "assistant",
+            timestamp: new Date(),
+            isStreaming: true,
+          };
+          return [...prev, streamingMessage];
+        }
+      });
+    }
+  }, [
+    streamState.currentMessage,
+    streamState.isStreaming,
+    streamState.messageId,
+  ]);
+
+  // ストリーミング完了時の処理
+  useEffect(() => {
+    if (
+      !streamState.isStreaming &&
+      streamState.currentMessage &&
+      streamState.messageId
+    ) {
+      console.log("✅ Streaming completed");
+
+      // ストリーミングメッセージを最終化（isStreamingをfalseに）
+      setMessages((prev) => {
+        return prev.map((msg) => {
+          if (
+            msg.id === `streaming-${streamState.messageId}` &&
+            msg.isStreaming
+          ) {
+            return {
+              ...msg,
+              id: `assistant-${streamState.messageId}`, // 最終的なIDに変更
+              isStreaming: false,
+            };
+          }
+          return msg;
+        });
+      });
+
+      setIsLoading(false);
+
+      // ストリーミング状態をリセット
+      resetStream();
+    }
+  }, [
+    streamState.isStreaming,
+    streamState.currentMessage,
+    streamState.messageId,
+    resetStream,
+  ]);
+
+  // ストリーミングエラー処理
+  useEffect(() => {
+    if (streamState.error) {
+      console.error("❌ Streaming error:", streamState.error);
+      setIsLoading(false);
+
+      // エラーメッセージを追加
+      const errorMessage: Message = {
+        id: `stream-error-${Date.now()}`,
+        content: `ストリーミングエラー: ${streamState.error}`,
+        role: "assistant",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+
+      // エラー状態をリセット
+      resetStream();
+    }
+  }, [streamState.error, resetStream]);
+
   // 自動スクロール機能
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
@@ -72,7 +185,7 @@ export default function ChatWindow({
     scrollToBottom();
   }, [messages]);
 
-  // メッセージ送信処理（GraphQL統合版）
+  // メッセージ送信処理（GraphQL + SSE統合版）
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -86,6 +199,11 @@ export default function ChatWindow({
     setIsLoading(true);
 
     try {
+      // 既存のストリーミングがある場合は停止
+      if (streamState.isStreaming) {
+        stopStream();
+      }
+
       // GraphQL ask mutation実行
       const askInput: AskInput = {
         question: content,
@@ -97,17 +215,12 @@ export default function ChatWindow({
         variables: { input: askInput },
       });
 
-      // 外部コールバック実行（従来のローディング）
-      if (onMessageSend) {
-        await onMessageSend(content, sessionId);
-      } else {
-        // デモ用のダミー応答（実際のストリーミングが実装されるまで）
-        await simulateDemoResponse();
-      }
+      // GraphQL mutationが成功すれば、onCompletedでストリーミングが開始される
     } catch (error) {
       console.error("メッセージ送信エラー:", error);
+      setIsLoading(false);
 
-      // GraphQLエラーの詳細なハンドリング
+      // エラーメッセージの追加
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         content:
@@ -118,37 +231,15 @@ export default function ChatWindow({
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  // デモ用のダミー応答シミュレーション
-  const simulateDemoResponse = async () => {
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        const assistantMessage: Message = {
-          id: `assistant-${Date.now()}`,
-          content:
-            "GraphQL統合テスト: この応答はask mutationを経由して送信されました。実際のストリーミング機能は次のフェーズで実装されます。",
-          role: "assistant",
-          timestamp: new Date(),
-          citations: [
-            "https://graphql.org/learn/",
-            "https://www.apollographql.com/docs/",
-          ],
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-        resolve();
-      }, 1500);
-    });
   };
 
   // メッセージリストの最適化（最大件数制限）
   const displayMessages = messages.slice(-maxMessages);
 
-  // ローディング状態を統合（GraphQL + 従来のローディング）
-  const isActuallyLoading = isLoading || mutationLoading;
+  // ローディング状態を統合（GraphQL + ストリーミング + 従来のローディング）
+  const isActuallyLoading =
+    isLoading || mutationLoading || streamState.isStreaming;
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
@@ -156,6 +247,21 @@ export default function ChatWindow({
       {mutationError && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 text-sm">
           <strong>接続エラー:</strong> {mutationError.message}
+        </div>
+      )}
+
+      {/* ストリーミングエラー表示 */}
+      {streamState.error && (
+        <div className="bg-orange-50 border border-orange-200 text-orange-700 px-4 py-2 text-sm">
+          <strong>ストリーミングエラー:</strong> {streamState.error}
+        </div>
+      )}
+
+      {/* Deep Research進捗表示 */}
+      {streamState.progress && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 text-sm">
+          <strong>研究進捗:</strong> {streamState.progress.description}(
+          {streamState.progress.step}/{streamState.progress.total})
         </div>
       )}
 
@@ -196,7 +302,7 @@ export default function ChatWindow({
         )}
 
         {/* ローディング状態 */}
-        {isActuallyLoading && <LoadingMessage />}
+        {isActuallyLoading && !streamState.currentMessage && <LoadingMessage />}
 
         {/* 自動スクロール用のマーカー */}
         <div ref={messagesEndRef} />
@@ -211,6 +317,17 @@ export default function ChatWindow({
       />
     </div>
   );
+}
+
+// コンポーネントのアンマウント時にストリーミングをクリーンアップ（追加セーフティ）
+export function useChatWindowCleanup() {
+  const { stopStream } = useChatStream();
+
+  useEffect(() => {
+    return () => {
+      stopStream();
+    };
+  }, [stopStream]);
 }
 
 // 使用例・型エクスポート
