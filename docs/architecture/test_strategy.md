@@ -34,6 +34,63 @@ graph TB
 | **E2E**       | 主要パス100% | PR毎・デプロイ前 | < 5分      | QA + 開発者   |
 | **Load**      | P95性能目標 | 週次・リリース前  | < 10分     | SRE + 開発者  |
 
+### 1-3 テストディレクトリ構造
+
+QRAIプロジェクトでは、フロントエンドとバックエンドで異なるテスト配置戦略を採用しています。
+
+```
+llm-app-trial-with-ai-driven/
+├── frontend/                    # Next.js フロントエンド
+│   ├── src/                     # アプリケーションソース
+│   │   ├── components/          # UIコンポーネント
+│   │   ├── hooks/               # カスタムフック
+│   │   ├── app/                 # Next.js App Router
+│   │   └── lib/                 # ユーティリティ
+│   ├── tests/                   # 🔧 フロントエンドテスト
+│   │   ├── components/          # コンポーネントテスト
+│   │   │   ├── MessageBubble.test.tsx
+│   │   │   ├── InputForm.test.tsx
+│   │   │   └── LoadingSpinner.test.tsx
+│   │   ├── hooks/               # フックテスト
+│   │   │   └── useChatStream.test.ts
+│   │   ├── setup.ts             # テスト設定
+│   │   └── basic.test.ts        # 基本テスト
+│   ├── vitest.config.ts         # Vitest設定
+│   └── package.json
+├── backend/                     # FastAPI バックエンド
+│   ├── api/                     # GraphQL API
+│   ├── services/                # ビジネスロジック
+│   ├── providers/               # LLMプロバイダー
+│   ├── infra/                   # インフラストラクチャー
+│   ├── models/                  # データモデル
+│   ├── tests/                   # 🔧 バックエンドテスト
+│   │   ├── unit/                # ユニットテスト
+│   │   ├── integration/         # 統合テスト
+│   │   ├── mocks/               # モックデータ・ヘルパー
+│   │   ├── test_api.py          # APIテスト
+│   │   ├── test_providers.py    # プロバイダーテスト
+│   │   ├── conftest.py          # pytest設定・フィクスチャ
+│   │   └── __init__.py
+│   ├── alembic.ini              # DB マイグレーション設定
+│   └── Dockerfile               # テスト環境用
+├── tests/                       # 🔧 プロジェクト全体のテスト
+│   └── e2e/                     # E2Eテスト（Playwright）
+│       ├── basic-chat.spec.ts   # （予定）基本チャット機能
+│       ├── streaming.spec.ts    # （予定）ストリーミング機能
+│       └── error-scenarios.spec.ts # （予定）エラーケース
+├── playwright.config.ts         # （予定）Playwright設定（E2E）
+└── docker-compose.yml           # 開発・テスト環境設定
+```
+
+#### テスト配置戦略の理由
+
+| 配置場所                    | 対象テスト             | 理由                                    |
+| ----------------------- | ------------------ | ------------------------------------- |
+| `frontend/tests/`       | フロントエンドユニット・統合テスト | Next.jsのモジュール解決とVitestの統合を最適化         |
+| `backend/tests/`        | バックエンドユニット・統合テスト | Pythonのモジュールパス解決とpytestの設定を簡素化       |
+| `tests/e2e/`            | E2Eテスト            | フロントエンド・バックエンド・DBの全体連携テストのため独立配置 |
+| `tests/load/`           | 負荷テスト              | システム全体のパフォーマンステストのため独立配置           |
+
 ---
 
 ## 2. ユニットテスト戦略
@@ -648,4 +705,4 @@ python_functions = test_*
 
 ---
 
-*Last updated: 2025-06-03*
+*Last updated: 2024-12-28*
