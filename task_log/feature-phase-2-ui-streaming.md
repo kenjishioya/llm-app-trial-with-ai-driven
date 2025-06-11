@@ -285,16 +285,16 @@
 - **🔄 コミット**: `test(frontend): setup Vitest with React Testing Library`
 
 **Task 2-4A-2: コンポーネントユニットテスト**
-- [ ] `tests/frontend/components/MessageBubble.test.tsx` 作成
-- [ ] `tests/frontend/components/InputForm.test.tsx` 作成
-- [ ] `tests/frontend/components/LoadingSpinner.test.tsx` 作成
+- [ ] `frontend/tests/components/MessageBubble.test.tsx` 作成
+- [ ] `frontend/tests/components/InputForm.test.tsx` 作成
+- [ ] `frontend/tests/components/LoadingSpinner.test.tsx` 作成
 - [ ] 各コンポーネントの基本動作テスト
 - **完了条件**: 全コンポーネントテスト成功、カバレッジ>80%
 - **所要時間**: 45分
 - **🔄 コミット**: `test(frontend): add unit tests for chat components`
 
 **Task 2-4A-3: フックユニットテスト**
-- [ ] `tests/frontend/hooks/useChatStream.test.ts` 作成
+- [ ] `frontend/tests/hooks/useChatStream.test.ts` 作成
 - [ ] EventSource モック設定
 - [ ] ストリーミングロジックテスト
 - [ ] エラーケーステスト
@@ -322,16 +322,17 @@
 - [ ] UI要素存在確認テスト
 - **完了条件**: E2Eテスト成功、実際のフロー動作確認
 - **所要時間**: 40分
-- **🔄 コミット**: `test(frontend): add E2E tests for basic chat flow`
+- **🔄 コミット**: `test(e2e): add E2E tests for basic chat flow`
 
 **Task 2-4B-3: エラーケースE2E**
 - [ ] ネットワークエラーシミュレーション
 - [ ] SSE接続失敗ケース
 - [ ] 再接続機能テスト
 - [ ] バックエンド停止時の動作
+- [ ] `tests/e2e/error-scenarios.spec.ts` 作成
 - **完了条件**: エラーケースE2Eテスト成功
 - **所要時間**: 30分
-- **🔄 コミット**: `test(frontend): add E2E tests for error scenarios`
+- **🔄 コミット**: `test(e2e): add E2E tests for error scenarios`
 
 ---
 
@@ -369,8 +370,8 @@ llm-app-trial-with-ai-driven/
 │   ├── vitest.config.ts
 │   ├── playwright.config.ts
 │   └── codegen.yml
-├── tests/                       # 🔧 統合テストフォルダ（ルート直下）
-│   ├── frontend/                # フロントエンドテスト
+├── frontend/                    # Next.js フロントエンド
+│   ├── tests/                   # 🔧 フロントエンドテスト
 │   │   ├── components/          # コンポーネントテスト
 │   │   │   ├── MessageBubble.test.tsx
 │   │   │   ├── InputForm.test.tsx
@@ -378,6 +379,7 @@ llm-app-trial-with-ai-driven/
 │   │   ├── hooks/               # フックテスト
 │   │   │   └── useChatStream.test.ts
 │   │   └── setup.ts             # テスト設定
+├── tests/                       # 🔧 統合テスト・E2Eテスト（ルート直下）
 │   ├── e2e/                     # E2E テスト
 │   │   ├── basic-chat.spec.ts
 │   │   └── error-scenarios.spec.ts
