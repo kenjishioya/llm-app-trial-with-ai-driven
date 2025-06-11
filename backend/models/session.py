@@ -2,10 +2,10 @@
 チャットセッションモデル
 """
 
-from sqlalchemy import Column, String, DateTime, func
+from sqlalchemy import Column, String, DateTime
 from sqlalchemy.orm import relationship, Mapped
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, TYPE_CHECKING
 
 from . import Base
@@ -24,10 +24,12 @@ class Session(Base):  # type: ignore[valid-type,misc]
     )
     title: Mapped[str] = Column(String(255), nullable=False, default="新しいチャット")
     created_at: Mapped[datetime] = Column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     updated_at: Mapped[datetime] = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
     # リレーション

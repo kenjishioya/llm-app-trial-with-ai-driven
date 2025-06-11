@@ -2,10 +2,10 @@
 チャットメッセージモデル
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 from enum import Enum
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Enum as SQLEnum, func
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Enum as SQLEnum
 from sqlalchemy.orm import relationship, Mapped
 import uuid
 
@@ -45,7 +45,7 @@ class Message(Base):  # type: ignore[valid-type,misc]
     )  # その他のメタデータ（JSON文字列）
 
     created_at: Mapped[datetime] = Column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
     # リレーション
