@@ -142,7 +142,7 @@ class SearchService:
                 raise SearchServiceError("Search client not initialized")
 
             # 検索実行
-            results = await self.search_client.search(
+            results = self.search_client.search(
                 search_text=query,
                 top=top,
                 skip=skip,
@@ -155,7 +155,7 @@ class SearchService:
 
             # 結果を整理
             documents = []
-            async for result in results:
+            for result in results:
                 documents.append(
                     {
                         "score": result.get("@search.score"),
@@ -203,7 +203,7 @@ class SearchService:
             )
 
             # 検索実行
-            results = await self.search_client.search(
+            results = self.search_client.search(
                 search_text=None,
                 vector_queries=[vector_query],
                 select=select_fields,
@@ -213,7 +213,7 @@ class SearchService:
 
             # 結果を整理
             documents = []
-            async for result in results:
+            for result in results:
                 documents.append(
                     {
                         "score": result.get("@search.score"),
@@ -258,7 +258,7 @@ class SearchService:
             )
 
             # ハイブリッド検索実行
-            results = await self.search_client.search(
+            results = self.search_client.search(
                 search_text=query,
                 vector_queries=[vector_query],
                 search_fields=search_fields,
@@ -270,7 +270,7 @@ class SearchService:
 
             # 結果を整理
             documents = []
-            async for result in results:
+            for result in results:
                 documents.append(
                     {
                         "score": result.get("@search.score"),
@@ -304,7 +304,7 @@ class SearchService:
             if not self.search_client:
                 raise SearchServiceError("Search client not initialized")
 
-            document = await self.search_client.get_document(key=document_id)
+            document = self.search_client.get_document(key=document_id)
             return {"document": document}
 
         except ResourceNotFoundError:
@@ -319,7 +319,7 @@ class SearchService:
             if not self.search_client:
                 raise SearchServiceError("Search client not initialized")
 
-            result = await self.search_client.upload_documents(documents=documents)
+            result = self.search_client.upload_documents(documents=documents)
 
             # 結果を整理
             success_count = sum(1 for r in result if r.succeeded)
@@ -350,9 +350,7 @@ class SearchService:
             # 削除用ドキュメントを作成
             documents_to_delete = [{"id": doc_id} for doc_id in document_ids]
 
-            result = await self.search_client.delete_documents(
-                documents=documents_to_delete
-            )
+            result = self.search_client.delete_documents(documents=documents_to_delete)
 
             # 結果を整理
             success_count = sum(1 for r in result if r.succeeded)
@@ -392,12 +390,12 @@ class SearchService:
                         {
                             "name": field.name,
                             "type": str(field.type),
-                            "searchable": field.searchable,
-                            "filterable": field.filterable,
-                            "retrievable": field.retrievable,
-                            "sortable": field.sortable,
-                            "facetable": field.facetable,
-                            "key": field.key,
+                            "searchable": getattr(field, "searchable", None),
+                            "filterable": getattr(field, "filterable", None),
+                            "retrievable": getattr(field, "retrievable", None),
+                            "sortable": getattr(field, "sortable", None),
+                            "facetable": getattr(field, "facetable", None),
+                            "key": getattr(field, "key", None),
                         }
                         for field in index.fields
                     ],

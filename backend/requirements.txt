@@ -39,6 +39,7 @@ python-docx~=0.8.11
 datasets~=2.14.0
 pandas~=2.1.0
 requests~=2.31.0
+tqdm~=4.66.0
 
 # Testing (development)
 pytest~=7.4.3

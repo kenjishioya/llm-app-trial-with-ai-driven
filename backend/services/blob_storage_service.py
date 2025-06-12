@@ -89,7 +89,7 @@ class BlobStorageService:
         file_name: str,
         file_content: bytes,
         content_type: str = "application/octet-stream",
-        metadata: Optional[Dict[str, str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """ドキュメントのアップロード"""
         if not self._client:
@@ -101,8 +101,12 @@ class BlobStorageService:
             # ファイル名の正規化（パス区切り文字を統一）
             blob_name = file_name.replace("\\", "/")
 
-            # メタデータの準備
-            blob_metadata = metadata or {}
+            # メタデータの準備（すべて文字列に変換）
+            blob_metadata = {}
+            if metadata:
+                for key, value in metadata.items():
+                    blob_metadata[str(key)] = str(value)
+
             blob_metadata.update(
                 {
                     "uploaded_at": datetime.utcnow().isoformat(),

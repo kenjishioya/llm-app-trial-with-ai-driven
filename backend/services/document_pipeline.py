@@ -225,21 +225,28 @@ class DocumentPipeline:
                 search_doc = {
                     "id": f"{document_id}_chunk_{chunk.chunk_index}",
                     "document_id": document_id,
+                    "chunk_id": f"chunk_{chunk.chunk_index}",
+                    "title": parsed_doc.metadata.get(
+                        "title", parsed_doc.metadata.get("filename", "")
+                    ),
                     "content": chunk.content,
-                    "chunk_index": chunk.chunk_index,
-                    "chunk_overlap": chunk.chunk_overlap,
-                    "start_char": chunk.start_char,
-                    "end_char": chunk.end_char,
-                    "blob_url": blob_url,
-                    "filename": parsed_doc.metadata.get("filename", ""),
+                    "summary": (
+                        chunk.content[:200] + "..."
+                        if len(chunk.content) > 200
+                        else chunk.content
+                    ),
+                    "file_name": parsed_doc.metadata.get("filename", ""),
                     "file_type": parsed_doc.file_type,
-                    "content_type": parsed_doc.metadata.get("content_type", ""),
-                    "text_length": len(chunk.content),
-                    "processed_at": datetime.utcnow().isoformat(),
-                    "metadata": {
-                        **chunk.metadata,
-                        "document_metadata": parsed_doc.metadata,
-                    },
+                    "file_size": parsed_doc.metadata.get("file_size", 0),
+                    "created_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "updated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "chunk_index": chunk.chunk_index,
+                    "chunk_count": len(parsed_doc.chunks),
+                    "chunk_overlap": chunk.chunk_overlap,
+                    "source_url": blob_url,
+                    "page_number": chunk.metadata.get("page_number", 0),
+                    "category": parsed_doc.metadata.get("category", ""),
+                    "tags": parsed_doc.metadata.get("tags", []),
                 }
                 search_documents.append(search_doc)
 
