@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
 from config import get_settings
-from services.keyvault_service import create_keyvault_service, KeyVaultService
+from services.keyvault_service import create_keyvault_service
 from utils.logging import setup_test_logging, get_logger
 
 logger = get_logger(__name__)

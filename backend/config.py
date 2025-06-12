@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=[".env", "../.env"],  # backend/ と root/ の両方を確認
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",  # 未定義の環境変数を無視
@@ -130,6 +130,23 @@ class Settings(BaseSettings):
         default="qrai-knowledge-base",
         description="Azure Search インデックス名",
         alias="AZURE_SEARCH_INDEX_NAME",
+    )
+
+    # Azure Blob Storage
+    azure_storage_account_name: str = Field(
+        default="",
+        description="Azure Storage アカウント名",
+        alias="AZURE_STORAGE_ACCOUNT_NAME",
+    )
+    azure_storage_account_key: str = Field(
+        default="",
+        description="Azure Storage アカウントキー",
+        alias="AZURE_STORAGE_ACCOUNT_KEY",
+    )
+    azure_storage_container_name: str = Field(
+        default="documents",
+        description="Azure Storage コンテナ名",
+        alias="AZURE_STORAGE_CONTAINER_NAME",
     )
 
     # Azure Key Vault

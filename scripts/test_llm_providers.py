@@ -17,7 +17,7 @@ import sys
 import time
 import asyncio
 import argparse
-from typing import Dict, Any, List, AsyncGenerator
+from typing import Dict, Any
 from datetime import datetime
 
 # 依存関係チェック
@@ -33,6 +33,7 @@ except ImportError as e:
 
 # 環境変数読み込み
 load_dotenv()
+
 
 class LLMPerformanceTester:
     """LLMプロバイダー詳細テストクラス"""
@@ -59,38 +60,50 @@ class LLMPerformanceTester:
 
     async def test_chat_completion_openrouter(self) -> Dict[str, Any]:
         """OpenRouter チャット完了テスト"""
-        api_key = os.getenv('OPENROUTER_API_KEY')
+        api_key = os.getenv("OPENROUTER_API_KEY")
         if not api_key:
             return {"status": "skipped", "error": "API key not set"}
 
         try:
-            client = OpenAI(
-                api_key=api_key,
-                base_url="https://openrouter.ai/api/v1"
-            )
+            client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
 
             # 複数のテストケース
             test_cases = [
                 {
                     "name": "簡単な質問",
                     "messages": [{"role": "user", "content": "Hello, how are you?"}],
-                    "expected_tokens": 20
+                    "expected_tokens": 20,
                 },
                 {
                     "name": "日本語対応",
-                    "messages": [{"role": "user", "content": "こんにちは！今日はいい天気ですね。"}],
-                    "expected_tokens": 30
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": "こんにちは！今日はいい天気ですね。",
+                        }
+                    ],
+                    "expected_tokens": 30,
                 },
                 {
                     "name": "コーディング質問",
-                    "messages": [{"role": "user", "content": "Write a simple Python function to calculate fibonacci numbers."}],
-                    "expected_tokens": 100
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": "Write a simple Python function to calculate fibonacci numbers.",
+                        }
+                    ],
+                    "expected_tokens": 100,
                 },
                 {
                     "name": "推論タスク",
-                    "messages": [{"role": "user", "content": "If it takes 5 machines 5 minutes to make 5 widgets, how long would it take 100 machines to make 100 widgets?"}],
-                    "expected_tokens": 50
-                }
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": "If it takes 5 machines 5 minutes to make 5 widgets, how long would it take 100 machines to make 100 widgets?",
+                        }
+                    ],
+                    "expected_tokens": 50,
+                },
             ]
 
             results = []
@@ -104,7 +117,7 @@ class LLMPerformanceTester:
                     model="deepseek/deepseek-r1:free",
                     messages=test_case["messages"],
                     max_tokens=test_case["expected_tokens"],
-                    temperature=0.7
+                    temperature=0.7,
                 )
 
                 elapsed_time = self.measure_time(start_time)
@@ -112,24 +125,35 @@ class LLMPerformanceTester:
 
                 if response.choices and response.choices[0].message.content:
                     content = response.choices[0].message.content.strip()
-                    results.append({
-                        "test": test_case["name"],
-                        "success": True,
-                        "response_length": len(content),
-                        "elapsed_time": elapsed_time,
-                        "usage": response.usage.model_dump() if response.usage else None
-                    })
+                    results.append(
+                        {
+                            "test": test_case["name"],
+                            "success": True,
+                            "response_length": len(content),
+                            "elapsed_time": elapsed_time,
+                            "usage": (
+                                response.usage.model_dump() if response.usage else None
+                            ),
+                        }
+                    )
 
                     if self.verbose:
-                        self.log(f"応答: {content[:100]}{'...' if len(content) > 100 else ''}", "INFO")
+                        self.log(
+                            f"応答: {content[:100]}{'...' if len(content) > 100 else ''}",
+                            "INFO",
+                        )
                 else:
-                    results.append({
-                        "test": test_case["name"],
-                        "success": False,
-                        "error": "Empty response"
-                    })
+                    results.append(
+                        {
+                            "test": test_case["name"],
+                            "success": False,
+                            "error": "Empty response",
+                        }
+                    )
 
-            success_rate = sum(1 for r in results if r.get("success", False)) / len(results) * 100
+            success_rate = (
+                sum(1 for r in results if r.get("success", False)) / len(results) * 100
+            )
             avg_time = total_time / len(results)
 
             return {
@@ -141,8 +165,8 @@ class LLMPerformanceTester:
                     "success_rate": success_rate,
                     "total_time": total_time,
                     "average_time": avg_time,
-                    "tests_count": len(results)
-                }
+                    "tests_count": len(results),
+                },
             }
 
         except Exception as e:
@@ -150,25 +174,27 @@ class LLMPerformanceTester:
 
     async def test_streaming_openrouter(self) -> Dict[str, Any]:
         """OpenRouter ストリーミングテスト"""
-        api_key = os.getenv('OPENROUTER_API_KEY')
+        api_key = os.getenv("OPENROUTER_API_KEY")
         if not api_key:
             return {"status": "skipped", "error": "API key not set"}
 
         try:
-            client = OpenAI(
-                api_key=api_key,
-                base_url="https://openrouter.ai/api/v1"
-            )
+            client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
 
             self.log("OpenRouter: ストリーミングテスト開始...", "INFO")
             start_time = time.time()
 
             stream = client.chat.completions.create(
                 model="deepseek/deepseek-r1:free",
-                messages=[{"role": "user", "content": "Write a short story about a robot learning to paint. Make it about 200 words."}],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": "Write a short story about a robot learning to paint. Make it about 200 words.",
+                    }
+                ],
                 max_tokens=300,
                 temperature=0.7,
-                stream=True
+                stream=True,
             )
 
             chunks = []
@@ -184,7 +210,7 @@ class LLMPerformanceTester:
                     content_parts.append(chunk.choices[0].delta.content)
 
             total_time = self.measure_time(start_time)
-            full_content = ''.join(content_parts)
+            full_content = "".join(content_parts)
 
             return {
                 "status": "success",
@@ -194,7 +220,7 @@ class LLMPerformanceTester:
                 "content_length": len(full_content),
                 "first_chunk_time": first_chunk_time,
                 "total_time": total_time,
-                "chunks_per_second": len(chunks) / total_time if total_time > 0 else 0
+                "chunks_per_second": len(chunks) / total_time if total_time > 0 else 0,
             }
 
         except Exception as e:
@@ -202,36 +228,36 @@ class LLMPerformanceTester:
 
     async def test_chat_completion_google_ai(self) -> Dict[str, Any]:
         """Google AI チャット完了テスト"""
-        api_key = os.getenv('GOOGLE_AI_API_KEY')
+        api_key = os.getenv("GOOGLE_AI_API_KEY")
         if not api_key:
             return {"status": "skipped", "error": "API key not set"}
 
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            model = genai.GenerativeModel("gemini-2.5-flash")
 
             # テストケース
             test_cases = [
                 {
                     "name": "簡単な質問",
                     "prompt": "Hello, how are you today?",
-                    "max_tokens": 50
+                    "max_tokens": 50,
                 },
                 {
                     "name": "日本語対応",
                     "prompt": "日本の文化について教えてください。",
-                    "max_tokens": 100
+                    "max_tokens": 100,
                 },
                 {
                     "name": "創作タスク",
                     "prompt": "Write a haiku about artificial intelligence.",
-                    "max_tokens": 100
+                    "max_tokens": 100,
                 },
                 {
                     "name": "分析タスク",
                     "prompt": "Analyze the pros and cons of renewable energy.",
-                    "max_tokens": 200
-                }
+                    "max_tokens": 200,
+                },
             ]
 
             results = []
@@ -244,9 +270,8 @@ class LLMPerformanceTester:
                 response = model.generate_content(
                     test_case["prompt"],
                     generation_config=genai.types.GenerationConfig(
-                        max_output_tokens=test_case["max_tokens"],
-                        temperature=0.7
-                    )
+                        max_output_tokens=test_case["max_tokens"], temperature=0.7
+                    ),
                 )
 
                 elapsed_time = self.measure_time(start_time)
@@ -254,23 +279,32 @@ class LLMPerformanceTester:
 
                 if response.text:
                     content = response.text.strip()
-                    results.append({
-                        "test": test_case["name"],
-                        "success": True,
-                        "response_length": len(content),
-                        "elapsed_time": elapsed_time
-                    })
+                    results.append(
+                        {
+                            "test": test_case["name"],
+                            "success": True,
+                            "response_length": len(content),
+                            "elapsed_time": elapsed_time,
+                        }
+                    )
 
                     if self.verbose:
-                        self.log(f"応答: {content[:100]}{'...' if len(content) > 100 else ''}", "INFO")
+                        self.log(
+                            f"応答: {content[:100]}{'...' if len(content) > 100 else ''}",
+                            "INFO",
+                        )
                 else:
-                    results.append({
-                        "test": test_case["name"],
-                        "success": False,
-                        "error": "Empty response"
-                    })
+                    results.append(
+                        {
+                            "test": test_case["name"],
+                            "success": False,
+                            "error": "Empty response",
+                        }
+                    )
 
-            success_rate = sum(1 for r in results if r.get("success", False)) / len(results) * 100
+            success_rate = (
+                sum(1 for r in results if r.get("success", False)) / len(results) * 100
+            )
             avg_time = total_time / len(results)
 
             return {
@@ -282,8 +316,8 @@ class LLMPerformanceTester:
                     "success_rate": success_rate,
                     "total_time": total_time,
                     "average_time": avg_time,
-                    "tests_count": len(results)
-                }
+                    "tests_count": len(results),
+                },
             }
 
         except Exception as e:
@@ -294,20 +328,18 @@ class LLMPerformanceTester:
         results = {}
 
         # OpenRouter埋め込みテスト
-        openrouter_key = os.getenv('OPENROUTER_API_KEY')
+        openrouter_key = os.getenv("OPENROUTER_API_KEY")
         if openrouter_key:
             try:
                 client = OpenAI(
-                    api_key=openrouter_key,
-                    base_url="https://openrouter.ai/api/v1"
+                    api_key=openrouter_key, base_url="https://openrouter.ai/api/v1"
                 )
 
                 test_text = "This is a sample text for embedding generation."
                 start_time = time.time()
 
                 response = client.embeddings.create(
-                    model="text-embedding-ada-002",
-                    input=test_text
+                    model="text-embedding-ada-002", input=test_text
                 )
 
                 elapsed_time = self.measure_time(start_time)
@@ -318,16 +350,19 @@ class LLMPerformanceTester:
                         "status": "success",
                         "dimensions": len(embedding),
                         "elapsed_time": elapsed_time,
-                        "model": "text-embedding-ada-002"
+                        "model": "text-embedding-ada-002",
                     }
                 else:
-                    results["openrouter"] = {"status": "failed", "error": "No embedding data"}
+                    results["openrouter"] = {
+                        "status": "failed",
+                        "error": "No embedding data",
+                    }
 
             except Exception as e:
                 results["openrouter"] = {"status": "failed", "error": str(e)}
 
         # Google AI埋め込みテスト（Text Embedding APIが利用可能な場合）
-        google_key = os.getenv('GOOGLE_AI_API_KEY')
+        google_key = os.getenv("GOOGLE_AI_API_KEY")
         if google_key:
             try:
                 genai.configure(api_key=google_key)
@@ -337,29 +372,33 @@ class LLMPerformanceTester:
 
                 # Google AI のembedding APIを使用
                 response = genai.embed_content(
-                    model="models/text-embedding-004",
-                    content=test_text
+                    model="models/text-embedding-004", content=test_text
                 )
 
                 elapsed_time = self.measure_time(start_time)
 
-                if response and 'embedding' in response:
-                    embedding = response['embedding']
+                if response and "embedding" in response:
+                    embedding = response["embedding"]
                     results["google_ai"] = {
                         "status": "success",
                         "dimensions": len(embedding),
                         "elapsed_time": elapsed_time,
-                        "model": "text-embedding-004"
+                        "model": "text-embedding-004",
                     }
                 else:
-                    results["google_ai"] = {"status": "failed", "error": "No embedding data"}
+                    results["google_ai"] = {
+                        "status": "failed",
+                        "error": "No embedding data",
+                    }
 
             except Exception as e:
                 results["google_ai"] = {"status": "failed", "error": str(e)}
 
         return results
 
-    async def run_performance_tests(self, test_type: str = "all", provider_filter: str = None) -> Dict[str, Any]:
+    async def run_performance_tests(
+        self, test_type: str = "all", provider_filter: str = None
+    ) -> Dict[str, Any]:
         """パフォーマンステスト実行"""
         self.log("🔧 QRAI LLMプロバイダー詳細テスト開始", "INFO")
         self.log("=" * 60, "INFO")
@@ -378,9 +417,15 @@ class LLMPerformanceTester:
 
                 if result["status"] == "success":
                     summary = result["summary"]
-                    self.log(f"✅ OpenRouter: 成功率 {summary['success_rate']:.1f}%, 平均応答時間 {summary['average_time']:.2f}秒", "SUCCESS")
+                    self.log(
+                        f"✅ OpenRouter: 成功率 {summary['success_rate']:.1f}%, 平均応答時間 {summary['average_time']:.2f}秒",
+                        "SUCCESS",
+                    )
                 else:
-                    self.log(f"❌ OpenRouter: {result.get('error', 'Unknown error')}", "ERROR")
+                    self.log(
+                        f"❌ OpenRouter: {result.get('error', 'Unknown error')}",
+                        "ERROR",
+                    )
 
             if not provider_filter or provider_filter == "google_ai":
                 self.log("Google AI テスト中...", "INFO")
@@ -389,9 +434,14 @@ class LLMPerformanceTester:
 
                 if result["status"] == "success":
                     summary = result["summary"]
-                    self.log(f"✅ Google AI: 成功率 {summary['success_rate']:.1f}%, 平均応答時間 {summary['average_time']:.2f}秒", "SUCCESS")
+                    self.log(
+                        f"✅ Google AI: 成功率 {summary['success_rate']:.1f}%, 平均応答時間 {summary['average_time']:.2f}秒",
+                        "SUCCESS",
+                    )
                 else:
-                    self.log(f"❌ Google AI: {result.get('error', 'Unknown error')}", "ERROR")
+                    self.log(
+                        f"❌ Google AI: {result.get('error', 'Unknown error')}", "ERROR"
+                    )
 
         # ストリーミングテスト
         if test_type in ["all", "streaming"]:
@@ -403,9 +453,15 @@ class LLMPerformanceTester:
                 all_results["openrouter_streaming"] = result
 
                 if result["status"] == "success":
-                    self.log(f"✅ OpenRouter ストリーミング: {result['total_chunks']} chunks, 初回応答 {result['first_chunk_time']}秒", "SUCCESS")
+                    self.log(
+                        f"✅ OpenRouter ストリーミング: {result['total_chunks']} chunks, 初回応答 {result['first_chunk_time']}秒",
+                        "SUCCESS",
+                    )
                 else:
-                    self.log(f"❌ OpenRouter ストリーミング: {result.get('error', 'Unknown error')}", "ERROR")
+                    self.log(
+                        f"❌ OpenRouter ストリーミング: {result.get('error', 'Unknown error')}",
+                        "ERROR",
+                    )
 
         # 埋め込みテスト
         if test_type in ["all", "embedding"]:
@@ -417,9 +473,15 @@ class LLMPerformanceTester:
 
             for provider, result in embedding_results.items():
                 if result["status"] == "success":
-                    self.log(f"✅ {provider}: {result['dimensions']} 次元, {result['elapsed_time']}秒", "SUCCESS")
+                    self.log(
+                        f"✅ {provider}: {result['dimensions']} 次元, {result['elapsed_time']}秒",
+                        "SUCCESS",
+                    )
                 else:
-                    self.log(f"❌ {provider}: {result.get('error', 'Unknown error')}", "ERROR")
+                    self.log(
+                        f"❌ {provider}: {result.get('error', 'Unknown error')}",
+                        "ERROR",
+                    )
 
         # 結果サマリー
         self.log("\n📊 テスト結果サマリー", "INFO")
@@ -447,16 +509,20 @@ class LLMPerformanceTester:
                     self.log(f"❌ {test_name}: 失敗", "ERROR")
 
         success_rate = (successful_tests / total_tests * 100) if total_tests > 0 else 0
-        self.log(f"\n🎯 総合成功率: {success_rate:.1f}% ({successful_tests}/{total_tests})", "SUCCESS")
+        self.log(
+            f"\n🎯 総合成功率: {success_rate:.1f}% ({successful_tests}/{total_tests})",
+            "SUCCESS",
+        )
 
         return {
             "summary": {
                 "total_tests": total_tests,
                 "successful_tests": successful_tests,
-                "success_rate": success_rate
+                "success_rate": success_rate,
             },
-            "detailed_results": all_results
+            "detailed_results": all_results,
         }
+
 
 def main():
     """メイン処理"""
@@ -465,18 +531,14 @@ def main():
         "--test",
         choices=["all", "chat", "streaming", "embedding"],
         default="all",
-        help="実行するテストタイプ"
+        help="実行するテストタイプ",
     )
     parser.add_argument(
         "--provider",
         choices=["openrouter", "google_ai", "azure_openai"],
-        help="特定のプロバイダーのみテスト"
+        help="特定のプロバイダーのみテスト",
     )
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="詳細出力"
-    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="詳細出力")
 
     args = parser.parse_args()
 
@@ -499,6 +561,7 @@ def main():
     except Exception as e:
         print(f"❌ 予期しないエラー: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

@@ -33,6 +33,7 @@ except ImportError as e:
 # 環境変数読み込み
 load_dotenv()
 
+
 class LLMProviderTester:
     """LLMプロバイダーテストクラス"""
 
@@ -55,26 +56,31 @@ class LLMProviderTester:
     async def check_openrouter(self) -> Dict[str, Any]:
         """OpenRouter接続確認"""
         provider_name = "OpenRouter"
-        api_key = os.getenv('OPENROUTER_API_KEY')
+        api_key = os.getenv("OPENROUTER_API_KEY")
 
         if not api_key:
-            self.log(f"{provider_name}: APIキーが設定されていません (OPENROUTER_API_KEY)", "ERROR")
+            self.log(
+                f"{provider_name}: APIキーが設定されていません (OPENROUTER_API_KEY)",
+                "ERROR",
+            )
             return {"status": "failed", "error": "API key not set"}
 
         self.log(f"{provider_name}: 接続テスト開始...", "INFO")
 
         try:
-            client = OpenAI(
-                api_key=api_key,
-                base_url="https://openrouter.ai/api/v1"
-            )
+            client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
 
             # 基本的なチャット完了テスト
             response = client.chat.completions.create(
                 model="deepseek/deepseek-r1:free",
-                messages=[{"role": "user", "content": "Hello! Please respond with 'OpenRouter is working!'"}],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": "Hello! Please respond with 'OpenRouter is working!'",
+                    }
+                ],
                 max_tokens=50,
-                temperature=0.7
+                temperature=0.7,
             )
 
             if response.choices and response.choices[0].message.content:
@@ -85,8 +91,14 @@ class LLMProviderTester:
                 # モデル情報取得テスト
                 try:
                     models_response = client.models.list()
-                    available_models = len(models_response.data) if hasattr(models_response, 'data') else 0
-                    self.log(f"{provider_name}: 利用可能モデル数: {available_models}", "INFO")
+                    available_models = (
+                        len(models_response.data)
+                        if hasattr(models_response, "data")
+                        else 0
+                    )
+                    self.log(
+                        f"{provider_name}: 利用可能モデル数: {available_models}", "INFO"
+                    )
                 except Exception as e:
                     self.log(f"{provider_name}: モデル一覧取得失敗: {e}", "WARNING")
 
@@ -94,7 +106,7 @@ class LLMProviderTester:
                     "status": "success",
                     "response": content,
                     "model": "deepseek/deepseek-r1:free",
-                    "usage": response.usage.model_dump() if response.usage else None
+                    "usage": response.usage.model_dump() if response.usage else None,
                 }
             else:
                 self.log(f"{provider_name}: 空のレスポンス", "ERROR")
@@ -107,10 +119,13 @@ class LLMProviderTester:
     async def check_google_ai(self) -> Dict[str, Any]:
         """Google AI Studio接続確認"""
         provider_name = "Google AI"
-        api_key = os.getenv('GOOGLE_AI_API_KEY')
+        api_key = os.getenv("GOOGLE_AI_API_KEY")
 
         if not api_key:
-            self.log(f"{provider_name}: APIキーが設定されていません (GOOGLE_AI_API_KEY)", "ERROR")
+            self.log(
+                f"{provider_name}: APIキーが設定されていません (GOOGLE_AI_API_KEY)",
+                "ERROR",
+            )
             return {"status": "failed", "error": "API key not set"}
 
         self.log(f"{provider_name}: 接続テスト開始...", "INFO")
@@ -121,20 +136,26 @@ class LLMProviderTester:
             # 利用可能モデル確認
             try:
                 models = list(genai.list_models())
-                available_models = [m.name for m in models if 'generateContent' in m.supported_generation_methods]
-                self.log(f"{provider_name}: 利用可能モデル数: {len(available_models)}", "INFO")
+                available_models = [
+                    m.name
+                    for m in models
+                    if "generateContent" in m.supported_generation_methods
+                ]
+                self.log(
+                    f"{provider_name}: 利用可能モデル数: {len(available_models)}",
+                    "INFO",
+                )
             except Exception as e:
                 self.log(f"{provider_name}: モデル一覧取得失敗: {e}", "WARNING")
                 available_models = []
 
             # 基本的なチャット完了テスト
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            model = genai.GenerativeModel("gemini-2.5-flash")
             response = model.generate_content(
                 "Hello! Please respond with 'Google AI is working!'",
                 generation_config=genai.types.GenerationConfig(
-                    max_output_tokens=50,
-                    temperature=0.7
-                )
+                    max_output_tokens=50, temperature=0.7
+                ),
             )
 
             if response.text:
@@ -146,7 +167,7 @@ class LLMProviderTester:
                     "status": "success",
                     "response": content,
                     "model": "gemini-2.5-flash",
-                    "available_models": len(available_models)
+                    "available_models": len(available_models),
                 }
             else:
                 self.log(f"{provider_name}: 空のレスポンス", "ERROR")
@@ -159,31 +180,38 @@ class LLMProviderTester:
     async def check_azure_openai(self) -> Dict[str, Any]:
         """Azure OpenAI接続確認"""
         provider_name = "Azure OpenAI"
-        api_key = os.getenv('AZURE_OPENAI_API_KEY')
-        endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
+        api_key = os.getenv("AZURE_OPENAI_API_KEY")
+        endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
 
         if not api_key or not endpoint:
-            self.log(f"{provider_name}: APIキーまたはエンドポイントが設定されていません", "WARNING")
+            self.log(
+                f"{provider_name}: APIキーまたはエンドポイントが設定されていません",
+                "WARNING",
+            )
             return {"status": "skipped", "error": "API key or endpoint not set"}
 
         self.log(f"{provider_name}: 接続テスト開始...", "INFO")
 
         try:
-            from azure.identity import DefaultAzureCredential
             from openai import AzureOpenAI
 
             client = AzureOpenAI(
                 api_key=api_key,
                 azure_endpoint=endpoint,
-                api_version="2024-02-15-preview"
+                api_version="2024-02-15-preview",
             )
 
             # 基本的なチャット完了テスト
             response = client.chat.completions.create(
                 model="gpt-4o-mini",  # デプロイメント名
-                messages=[{"role": "user", "content": "Hello! Please respond with 'Azure OpenAI is working!'"}],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": "Hello! Please respond with 'Azure OpenAI is working!'",
+                    }
+                ],
                 max_tokens=50,
-                temperature=0.7
+                temperature=0.7,
             )
 
             if response.choices and response.choices[0].message.content:
@@ -196,7 +224,7 @@ class LLMProviderTester:
                     "response": content,
                     "model": "gpt-4o-mini",
                     "endpoint": endpoint,
-                    "usage": response.usage.model_dump() if response.usage else None
+                    "usage": response.usage.model_dump() if response.usage else None,
                 }
             else:
                 self.log(f"{provider_name}: 空のレスポンス", "ERROR")
@@ -206,7 +234,9 @@ class LLMProviderTester:
             self.log(f"{provider_name}: 接続失敗 - {str(e)}", "ERROR")
             return {"status": "failed", "error": str(e)}
 
-    async def run_all_tests(self, provider_filter: Optional[str] = None) -> Dict[str, Any]:
+    async def run_all_tests(
+        self, provider_filter: Optional[str] = None
+    ) -> Dict[str, Any]:
         """全プロバイダーのテスト実行"""
         self.log("🔍 QRAI LLMプロバイダー設定確認開始", "INFO")
         self.log("=" * 50, "INFO")
@@ -215,7 +245,7 @@ class LLMProviderTester:
         tests = {
             "openrouter": self.check_openrouter,
             "google_ai": self.check_google_ai,
-            "azure_openai": self.check_azure_openai
+            "azure_openai": self.check_azure_openai,
         }
 
         # フィルタリング
@@ -254,25 +284,37 @@ class LLMProviderTester:
 
         # 推奨設定
         if success_count > 0:
-            self.log(f"\n🎉 {success_count}/{total_count} プロバイダーが利用可能です", "SUCCESS")
+            self.log(
+                f"\n🎉 {success_count}/{total_count} プロバイダーが利用可能です",
+                "SUCCESS",
+            )
 
             # 推奨設定提案
-            if "openrouter" in self.results and self.results["openrouter"]["status"] == "success":
+            if (
+                "openrouter" in self.results
+                and self.results["openrouter"]["status"] == "success"
+            ):
                 self.log("💡 推奨: OpenRouterをプライマリプロバイダーに設定", "INFO")
-            elif "google_ai" in self.results and self.results["google_ai"]["status"] == "success":
+            elif (
+                "google_ai" in self.results
+                and self.results["google_ai"]["status"] == "success"
+            ):
                 self.log("💡 推奨: Google AIをプライマリプロバイダーに設定", "INFO")
         else:
             self.log("⚠️ 利用可能なプロバイダーがありません", "WARNING")
-            self.log("📖 設定ガイド: docs/environment_setup.md を参照してください", "INFO")
+            self.log(
+                "📖 設定ガイド: docs/environment_setup.md を参照してください", "INFO"
+            )
 
         return {
             "summary": {
                 "total": total_count,
                 "success": success_count,
-                "failed": total_count - success_count
+                "failed": total_count - success_count,
             },
-            "results": self.results
+            "results": self.results,
         }
+
 
 def main():
     """メイン処理"""
@@ -280,13 +322,9 @@ def main():
     parser.add_argument(
         "--provider",
         choices=["openrouter", "google_ai", "azure_openai"],
-        help="特定のプロバイダーのみテスト"
+        help="特定のプロバイダーのみテスト",
     )
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="詳細出力"
-    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="詳細出力")
 
     args = parser.parse_args()
 
@@ -312,6 +350,7 @@ def main():
     except Exception as e:
         print(f"❌ 予期しないエラー: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
