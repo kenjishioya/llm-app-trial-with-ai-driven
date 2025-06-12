@@ -3,8 +3,8 @@
 """
 
 import strawberry
-from typing import Optional
-from datetime import datetime
+from typing import Optional, List
+from dataclasses import dataclass
 import enum
 
 
@@ -17,6 +17,20 @@ class MessageRole(enum.Enum):
 
 
 @strawberry.type
+@dataclass
+class CitationType:
+    """引用情報型"""
+
+    id: int
+    title: str
+    content: str
+    score: float
+    source: str
+    url: str
+
+
+@strawberry.type
+@dataclass
 class MessageType:
     """メッセージ型"""
 
@@ -24,9 +38,9 @@ class MessageType:
     session_id: strawberry.ID
     role: MessageRole
     content: str
-    citations: Optional[str] = None  # JSON文字列として扱う
-    meta_data: Optional[str] = None  # JSON文字列として扱う
-    created_at: datetime
+    citations: List[CitationType]  # 構造化された引用情報
+    meta_data: strawberry.scalars.JSON  # JSONスカラー型を使用
+    created_at: str
 
 
 @strawberry.input
@@ -36,5 +50,5 @@ class MessageInput:
     session_id: strawberry.ID
     role: MessageRole
     content: str
-    citations: Optional[str] = None
-    meta_data: Optional[str] = None
+    citations: Optional[str] = None  # JSON文字列として受け取り
+    meta_data: Optional[str] = None  # JSON文字列として受け取り

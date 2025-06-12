@@ -510,6 +510,9 @@ dev-data/
 sample-data/
 mock-data/
 
+# テストドキュメント（一時的なファイル）
+test_documents/
+
 # パフォーマンステスト結果
 performance-reports/
 load-test-results/

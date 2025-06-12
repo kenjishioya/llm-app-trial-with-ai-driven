@@ -77,23 +77,43 @@ class SearchService:
                 }
 
             # サービス統計を取得してヘルスチェック
-            service_stats = await self.index_client.get_service_statistics()
+            service_stats = self.index_client.get_service_statistics()
 
             return {
                 "status": "healthy",
                 "service_stats": {
                     "counters": {
-                        "document_count": service_stats.counters.document_count,
-                        "index_count": service_stats.counters.index_count,
-                        "indexer_count": service_stats.counters.indexer_count,
-                        "data_source_count": service_stats.counters.data_source_count,
-                        "storage_size": service_stats.counters.storage_size,
+                        "document_count": service_stats.get("counters", {}).get(
+                            "document_count", 0
+                        ),
+                        "index_count": service_stats.get("counters", {}).get(
+                            "index_count", 0
+                        ),
+                        "indexer_count": service_stats.get("counters", {}).get(
+                            "indexer_count", 0
+                        ),
+                        "data_source_count": service_stats.get("counters", {}).get(
+                            "data_source_count", 0
+                        ),
+                        "storage_size": service_stats.get("counters", {}).get(
+                            "storage_size", 0
+                        ),
                     },
                     "limits": {
-                        "max_indexes_allowed": service_stats.limits.max_indexes_allowed,
-                        "max_fields_per_index": service_stats.limits.max_fields_per_index,
-                        "max_complex_collection_fields_per_index": service_stats.limits.max_complex_collection_fields_per_index,
-                        "max_complex_objects_in_collections_per_document": service_stats.limits.max_complex_objects_in_collections_per_document,
+                        "max_indexes_allowed": service_stats.get("limits", {}).get(
+                            "max_indexes_allowed", 0
+                        ),
+                        "max_fields_per_index": service_stats.get("limits", {}).get(
+                            "max_fields_per_index", 0
+                        ),
+                        "max_complex_collection_fields_per_index": service_stats.get(
+                            "limits", {}
+                        ).get("max_complex_collection_fields_per_index", 0),
+                        "max_complex_objects_in_collections_per_document": service_stats.get(
+                            "limits", {}
+                        ).get(
+                            "max_complex_objects_in_collections_per_document", 0
+                        ),
                     },
                 },
             }
@@ -361,7 +381,7 @@ class SearchService:
                 raise SearchServiceError("Index client not initialized")
 
             try:
-                index = await self.index_client.get_index(
+                index = self.index_client.get_index(
                     name=self.settings.azure_search_index_name
                 )
                 return {

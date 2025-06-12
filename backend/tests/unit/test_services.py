@@ -4,7 +4,7 @@
 
 import pytest
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.session_service import SessionService
@@ -233,6 +233,213 @@ class TestRAGService:
 
         # 空の履歴が返されることを確認（モック環境）
         assert isinstance(result, list)
+
+    @pytest.mark.asyncio
+    async def test_search_documents_success(self, rag_service):
+        """ドキュメント検索の成功テスト"""
+        query = "テスト検索クエリ"
+
+        # SearchServiceのモック設定（SearchServiceのAPIレスポンス形式に合わせる）
+        mock_search_response = {
+            "documents": [
+                {
+                    "score": 0.85,
+                    "document": {
+                        "id": "doc1",
+                        "title": "テストドキュメント1",
+                        "content": "これはテスト用のドキュメント内容です。",
+                        "file_name": "test1.pdf",
+                        "source_url": "https://example.com/test1.pdf",
+                        "file_type": "pdf",
+                        "file_size": 1024,
+                        "created_at": "2025-06-12T00:00:00Z",
+                        "chunk_index": 0,
+                        "chunk_count": 1,
+                    },
+                }
+            ]
+        }
+
+        rag_service.search_service.search_documents = AsyncMock(
+            return_value=mock_search_response
+        )
+
+        # テスト実行
+        result = await rag_service.search_documents(query=query, top_k=5)
+
+        # 検証
+        assert len(result) == 1
+        assert result[0]["id"] == "doc1"
+        assert result[0]["title"] == "テストドキュメント1"
+        assert result[0]["score"] == 0.85
+        assert result[0]["metadata"]["file_type"] == "pdf"
+
+        # SearchServiceが適切に呼ばれたか
+        rag_service.search_service.search_documents.assert_called_once_with(
+            query=query,
+            top=5,  # SearchServiceのAPIに合わせてtopパラメータを使用
+            select_fields=[
+                "id",
+                "title",
+                "content",
+                "file_name",
+                "source_url",
+                "file_type",
+                "file_size",
+                "created_at",
+                "chunk_index",
+                "chunk_count",
+            ],
+            filter_expression=None,
+        )
+
+    @pytest.mark.asyncio
+    async def test_search_documents_with_filters(self, rag_service):
+        """フィルタ付きドキュメント検索のテスト"""
+        query = "テスト検索"
+        filters = {"file_type": "pdf"}
+
+        # SearchServiceのモック設定（空の結果）
+        mock_empty_response = {"documents": []}
+        rag_service.search_service.search_documents = AsyncMock(
+            return_value=mock_empty_response
+        )
+
+        # テスト実行
+        result = await rag_service.search_documents(query=query, filters=filters)
+
+        # 検証
+        assert isinstance(result, list)
+        rag_service.search_service.search_documents.assert_called_once_with(
+            query=query,
+            top=10,  # デフォルト値、SearchServiceのAPIに合わせてtopパラメータを使用
+            select_fields=[
+                "id",
+                "title",
+                "content",
+                "file_name",
+                "source_url",
+                "file_type",
+                "file_size",
+                "created_at",
+                "chunk_index",
+                "chunk_count",
+            ],
+            filter_expression="file_type eq 'pdf'",  # フィルタが文字列形式に変換される
+        )
+
+    @pytest.mark.asyncio
+    async def test_search_documents_error_handling(self, rag_service):
+        """ドキュメント検索のエラーハンドリングテスト"""
+        query = "エラーテスト"
+
+        # SearchServiceでエラーを発生させる
+        rag_service.search_service.search_documents = AsyncMock(
+            side_effect=Exception("Search error")
+        )
+
+        # テスト実行
+        result = await rag_service.search_documents(query=query)
+
+        # エラー時は空のリストが返されることを確認
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_ask_question_with_search_results(self, rag_service, mock_db):
+        """検索結果がある場合の質問回答テスト"""
+        question = "Azure AI Searchについて教えて"
+        session_id = uuid.uuid4()
+
+        # SearchServiceのモック設定（SearchServiceのAPIレスポンス形式に合わせる）
+        mock_search_response = {
+            "documents": [
+                {
+                    "score": 0.9,
+                    "document": {
+                        "id": "doc1",
+                        "title": "Azure AI Search ガイド",
+                        "content": "Azure AI Searchは強力な検索サービスです。",
+                        "file_name": "azure_guide.pdf",
+                        "source_url": "https://example.com/azure_guide.pdf",
+                        "file_type": "pdf",
+                        "file_size": 2048,
+                        "created_at": "2025-06-12T00:00:00Z",
+                        "chunk_index": 0,
+                        "chunk_count": 1,
+                    },
+                }
+            ]
+        }
+
+        rag_service.search_service.search_documents = AsyncMock(
+            return_value=mock_search_response
+        )
+
+        # モック設定
+        mock_db.add = MagicMock()
+        mock_db.commit = AsyncMock()
+        mock_db.refresh = AsyncMock()
+
+        # テスト実行
+        result = await rag_service.ask_question(question, session_id)
+
+        # 検証
+        assert "answer" in result
+        assert len(result["citations"]) == 1
+        assert result["citations"][0]["title"] == "Azure AI Search ガイド"
+        assert result["citations"][0]["score"] == 0.9
+        assert result["metadata"]["search_results_count"] == 1
+        assert result["metadata"]["has_context"] is True
+
+    @pytest.mark.asyncio
+    async def test_stream_answer_with_citations(self, rag_service, mock_db):
+        """引用付きストリーミング回答のテスト"""
+        question = "ストリーミングテスト"
+        session_id = uuid.uuid4()
+
+        # SearchServiceのモック設定（SearchServiceのAPIレスポンス形式に合わせる）
+        mock_search_response = {
+            "documents": [
+                {
+                    "score": 0.8,
+                    "document": {
+                        "id": "doc1",
+                        "title": "ストリーミングガイド",
+                        "content": "ストリーミングの詳細説明",
+                        "file_name": "streaming.pdf",
+                        "source_url": "",
+                        "file_type": "pdf",
+                        "file_size": 1024,
+                        "created_at": "2025-06-12T00:00:00Z",
+                        "chunk_index": 0,
+                        "chunk_count": 1,
+                    },
+                }
+            ]
+        }
+
+        rag_service.search_service.search_documents = AsyncMock(
+            return_value=mock_search_response
+        )
+
+        # モック設定
+        mock_db.add = MagicMock()
+        mock_db.commit = AsyncMock()
+        mock_db.refresh = AsyncMock()
+
+        chunks = []
+        async for chunk in rag_service.stream_answer(question, session_id):
+            chunks.append(chunk)
+
+        # 検証
+        assert len(chunks) > 0
+
+        # 最後のchunkに引用情報が含まれているか
+        last_chunk = chunks[-1]
+        assert last_chunk.get("is_complete") is True
+        assert "citations" in last_chunk
+        assert len(last_chunk["citations"]) == 1
+        assert last_chunk["citations"][0]["title"] == "ストリーミングガイド"
 
 
 class TestSearchService:
@@ -784,3 +991,459 @@ class TestBlobStorageService:
         assert result["status"] == "not_configured"
         assert result["account_name"] is None
         assert result["container_name"] is None
+
+
+class TestDocumentParser:
+    """ドキュメントパーサーのユニットテスト"""
+
+    @pytest.fixture
+    def document_parser(self):
+        """DocumentParserインスタンス"""
+        from services.document_parser import DocumentParser
+
+        return DocumentParser(chunk_size=500, chunk_overlap=50)
+
+    @pytest.fixture
+    def sample_text_content(self):
+        """テスト用テキストコンテンツ"""
+        return b"This is a test document.\n\nIt has multiple paragraphs.\n\nEach paragraph should be processed correctly."
+
+    @pytest.fixture
+    def sample_pdf_content(self):
+        """テスト用PDFコンテンツ（バイナリ）"""
+        # 実際のPDFバイナリの代わりにダミーデータ
+        return b"%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n"
+
+    @pytest.mark.asyncio
+    async def test_parse_text_file(self, document_parser, sample_text_content):
+        """テキストファイル解析のテスト"""
+        result = await document_parser.parse(
+            file_content=sample_text_content,
+            content_type="text/plain",
+            filename="test.txt",
+        )
+
+        from services.document_parser import ParsedDocument
+
+        assert isinstance(result, ParsedDocument)
+        assert result.file_type == "txt"
+        assert "This is a test document" in result.text
+        assert len(result.chunks) > 0
+        assert result.metadata["filename"] == "test.txt"
+        assert result.metadata["content_type"] == "text/plain"
+        assert result.processing_time > 0
+
+    @pytest.mark.asyncio
+    async def test_parse_markdown_file(self, document_parser):
+        """Markdownファイル解析のテスト"""
+        markdown_content = b"# Test Document\n\nThis is a **markdown** document.\n\n## Section 2\n\nWith multiple sections."
+
+        result = await document_parser.parse(
+            file_content=markdown_content,
+            content_type="text/markdown",
+            filename="test.md",
+        )
+
+        assert result.file_type == "txt"
+        assert "# Test Document" in result.text
+        assert "markdown" in result.text
+        assert len(result.chunks) > 0
+
+    @pytest.mark.asyncio
+    async def test_detect_file_type_by_extension(self, document_parser):
+        """ファイル拡張子による形式判定のテスト"""
+        # PDF拡張子
+        file_type = document_parser._detect_file_type(
+            "application/octet-stream", "document.pdf"
+        )
+        assert file_type == "pdf"
+
+        # DOCX拡張子
+        file_type = document_parser._detect_file_type(
+            "application/octet-stream", "document.docx"
+        )
+        assert file_type == "docx"
+
+        # TXT拡張子
+        file_type = document_parser._detect_file_type(
+            "application/octet-stream", "document.txt"
+        )
+        assert file_type == "txt"
+
+    @pytest.mark.asyncio
+    async def test_detect_file_type_by_content_type(self, document_parser):
+        """Content-Typeによる形式判定のテスト"""
+        # PDF Content-Type
+        file_type = document_parser._detect_file_type("application/pdf", "")
+        assert file_type == "pdf"
+
+        # DOCX Content-Type
+        file_type = document_parser._detect_file_type(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "",
+        )
+        assert file_type == "docx"
+
+        # Text Content-Type
+        file_type = document_parser._detect_file_type("text/plain", "")
+        assert file_type == "txt"
+
+    @pytest.mark.asyncio
+    async def test_chunk_splitting(self, document_parser):
+        """チャンク分割のテスト"""
+        # 長いテキストを作成
+        long_text = "This is a paragraph. " * 50  # 約1000文字
+        long_content = long_text.encode("utf-8")
+
+        result = await document_parser.parse(
+            file_content=long_content,
+            content_type="text/plain",
+            filename="long_text.txt",
+        )
+
+        # チャンクが複数作成されることを確認
+        assert len(result.chunks) > 1
+
+        # 各チャンクのサイズが適切であることを確認
+        for chunk in result.chunks:
+            assert len(chunk.content) <= document_parser.chunk_size + 100  # 多少の余裕
+            assert chunk.chunk_index >= 0
+            assert chunk.start_char >= 0
+            assert chunk.end_char > chunk.start_char
+
+    @pytest.mark.asyncio
+    async def test_unsupported_file_type_error(self, document_parser):
+        """サポートされていないファイル形式のエラーテスト"""
+        from services.document_parser import DocumentParserError
+
+        with pytest.raises(DocumentParserError, match="Unsupported file type"):
+            await document_parser.parse(
+                file_content=b"binary data",
+                content_type="application/unknown",
+                filename="test.unknown",
+            )
+
+    @pytest.mark.asyncio
+    async def test_empty_content_handling(self, document_parser):
+        """空コンテンツの処理テスト"""
+        result = await document_parser.parse(
+            file_content=b"", content_type="text/plain", filename="empty.txt"
+        )
+
+        assert result.text == ""
+        assert len(result.chunks) == 0
+        assert result.metadata["text_length"] == 0
+
+    @pytest.mark.asyncio
+    async def test_encoding_detection(self, document_parser):
+        """文字エンコーディング検出のテスト"""
+        # UTF-8テキスト
+        utf8_content = "日本語のテキストです。".encode("utf-8")
+        result = await document_parser.parse(
+            file_content=utf8_content,
+            content_type="text/plain",
+            filename="japanese.txt",
+        )
+        assert "日本語" in result.text
+
+        # Shift_JISテキスト（フォールバック）
+        try:
+            sjis_content = "日本語のテキストです。".encode("shift_jis")
+            result = await document_parser.parse(
+                file_content=sjis_content,
+                content_type="text/plain",
+                filename="japanese_sjis.txt",
+            )
+            assert "日本語" in result.text
+        except UnicodeEncodeError:
+            # Shift_JISでエンコードできない文字がある場合はスキップ
+            pass
+
+    def test_get_supported_types(self):
+        """サポートされるファイル形式取得のテスト"""
+        from services.document_parser import DocumentParser
+
+        supported_types = DocumentParser.get_supported_types()
+
+        assert "application/pdf" in supported_types
+        assert "text/plain" in supported_types
+        assert (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            in supported_types
+        )
+        assert supported_types["application/pdf"] == "pdf"
+        assert supported_types["text/plain"] == "txt"
+
+    def test_is_supported_type(self):
+        """ファイル形式サポート判定のテスト"""
+        from services.document_parser import DocumentParser
+
+        assert DocumentParser.is_supported_type("application/pdf") is True
+        assert DocumentParser.is_supported_type("text/plain") is True
+        assert DocumentParser.is_supported_type("application/unknown") is False
+
+    @pytest.mark.asyncio
+    async def test_metadata_extraction(self, document_parser, sample_text_content):
+        """メタデータ抽出のテスト"""
+        custom_metadata = {"source": "test", "category": "sample"}
+
+        result = await document_parser.parse(
+            file_content=sample_text_content,
+            content_type="text/plain",
+            filename="test.txt",
+            metadata=custom_metadata,
+        )
+
+        # 基本メタデータの確認
+        assert result.metadata["filename"] == "test.txt"
+        assert result.metadata["content_type"] == "text/plain"
+        assert result.metadata["file_type"] == "txt"
+        assert "parsed_at" in result.metadata
+        assert "text_length" in result.metadata
+
+        # カスタムメタデータの確認
+        assert result.metadata["source"] == "test"
+        assert result.metadata["category"] == "sample"
+
+        # テキスト固有メタデータの確認
+        assert "lines" in result.metadata
+        assert "encoding" in result.metadata
+
+
+class TestDocumentPipeline:
+    """ドキュメント処理パイプラインのユニットテスト"""
+
+    @pytest.fixture
+    def mock_blob_storage(self):
+        """モックBlobStorageService"""
+        mock_service = AsyncMock()
+        mock_service.upload_document = AsyncMock(
+            return_value="https://test.blob.core.windows.net/test.txt"
+        )
+        mock_service.health_check = AsyncMock(return_value=True)
+        return mock_service
+
+    @pytest.fixture
+    def mock_document_parser(self):
+        """モックDocumentParser"""
+        from services.document_parser import ParsedDocument, TextChunk
+
+        mock_parser = AsyncMock()
+
+        # parse メソッドを動的に設定
+        async def mock_parse(file_content, content_type, filename, metadata=None):
+            # テスト用のチャンクを作成
+            test_chunk = TextChunk(
+                content="Test content chunk",
+                chunk_index=0,
+                chunk_overlap=0,
+                start_char=0,
+                end_char=18,
+                metadata={"chunk_type": "test"},
+            )
+
+            # メタデータを統合
+            combined_metadata = {
+                "filename": filename,
+                "content_type": content_type,
+                "file_type": "txt",
+                "text_length": 18,
+                **(metadata or {}),  # カスタムメタデータを含める
+            }
+
+            # テスト用の解析結果を作成
+            return ParsedDocument(
+                text="Test content chunk",
+                chunks=[test_chunk],
+                metadata=combined_metadata,
+                file_type="txt",
+                processing_time=0.1,
+            )
+
+        mock_parser.parse = AsyncMock(side_effect=mock_parse)
+        mock_parser.get_supported_types = Mock(return_value={"text/plain": "txt"})
+        mock_parser.is_supported_type = Mock(return_value=True)
+
+        return mock_parser
+
+    @pytest.fixture
+    def mock_search_service(self):
+        """モックSearchService"""
+        mock_service = AsyncMock()
+        mock_service.upload_documents = AsyncMock()
+        mock_service.health_check = AsyncMock(return_value=True)
+        return mock_service
+
+    @pytest.fixture
+    def document_pipeline(
+        self, mock_blob_storage, mock_document_parser, mock_search_service
+    ):
+        """DocumentPipelineインスタンス"""
+        from services.document_pipeline import DocumentPipeline
+
+        return DocumentPipeline(
+            blob_storage=mock_blob_storage,
+            document_parser=mock_document_parser,
+            search_service=mock_search_service,
+        )
+
+    @pytest.mark.asyncio
+    async def test_process_document_success(
+        self,
+        document_pipeline,
+        mock_blob_storage,
+        mock_document_parser,
+        mock_search_service,
+    ):
+        """ドキュメント処理成功のテスト"""
+        test_content = b"Test document content"
+        filename = "test.txt"
+        content_type = "text/plain"
+
+        result = await document_pipeline.process_document(
+            file_content=test_content, filename=filename, content_type=content_type
+        )
+
+        # 結果の検証
+        from services.document_pipeline import ProcessingResult
+
+        assert isinstance(result, ProcessingResult)
+        assert result.blob_url == "https://test.blob.core.windows.net/test.txt"
+        assert result.chunks_count == 1
+        assert result.indexed_chunks == 1
+        assert result.processing_time > 0
+        assert len(result.errors) == 0
+
+        # 各サービスが適切に呼ばれたか検証
+        mock_document_parser.parse.assert_called_once()
+        mock_blob_storage.upload_document.assert_called_once()
+        mock_search_service.upload_documents.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_process_document_with_custom_metadata(self, document_pipeline):
+        """カスタムメタデータ付きドキュメント処理のテスト"""
+        test_content = b"Test document content"
+        filename = "test.txt"
+        content_type = "text/plain"
+        custom_metadata = {"source": "test", "category": "sample"}
+
+        result = await document_pipeline.process_document(
+            file_content=test_content,
+            filename=filename,
+            content_type=content_type,
+            metadata=custom_metadata,
+        )
+
+        # カスタムメタデータが含まれていることを確認
+        assert "source" in result.metadata
+        assert result.metadata["source"] == "test"
+
+    @pytest.mark.asyncio
+    async def test_process_document_parsing_error(
+        self, document_pipeline, mock_document_parser
+    ):
+        """ドキュメント解析エラーのテスト"""
+        from services.document_parser import DocumentParserError
+        from services.document_pipeline import DocumentPipelineError
+
+        # パーサーでエラーを発生させる
+        mock_document_parser.parse.side_effect = DocumentParserError("Parsing failed")
+
+        with pytest.raises(DocumentPipelineError, match="Document parsing failed"):
+            await document_pipeline.process_document(
+                file_content=b"test", filename="test.txt", content_type="text/plain"
+            )
+
+    @pytest.mark.asyncio
+    async def test_process_document_blob_storage_error(
+        self, document_pipeline, mock_blob_storage
+    ):
+        """Blob Storageエラーのテスト"""
+        from services.blob_storage_service import BlobStorageError
+        from services.document_pipeline import DocumentPipelineError
+
+        # Blob Storageでエラーを発生させる
+        mock_blob_storage.upload_document.side_effect = BlobStorageError(
+            "Upload failed"
+        )
+
+        with pytest.raises(DocumentPipelineError, match="Blob storage upload failed"):
+            await document_pipeline.process_document(
+                file_content=b"test", filename="test.txt", content_type="text/plain"
+            )
+
+    @pytest.mark.asyncio
+    async def test_process_document_indexing_error(
+        self, document_pipeline, mock_search_service
+    ):
+        """インデックス登録エラーのテスト"""
+        from services.document_pipeline import DocumentPipelineError
+
+        # Search Serviceでエラーを発生させる
+        mock_search_service.upload_documents.side_effect = Exception("Indexing failed")
+
+        with pytest.raises(DocumentPipelineError, match="Document indexing failed"):
+            await document_pipeline.process_document(
+                file_content=b"test", filename="test.txt", content_type="text/plain"
+            )
+
+    @pytest.mark.asyncio
+    async def test_get_processing_status(self, document_pipeline):
+        """処理状況取得のテスト"""
+        test_content = b"Test document content"
+        document_id = "test-doc-123"
+
+        # ドキュメント処理を開始
+        result = await document_pipeline.process_document(
+            file_content=test_content,
+            filename="test.txt",
+            content_type="text/plain",
+            document_id=document_id,
+        )
+
+        # 処理状況を取得
+        status = await document_pipeline.get_processing_status(document_id)
+
+        assert status is not None
+        assert status.document_id == document_id
+        assert status.status == "completed"
+        assert status.progress == 1.0
+        assert status.result == result
+
+    @pytest.mark.asyncio
+    async def test_health_check_all_healthy(self, document_pipeline):
+        """全コンポーネント正常時のヘルスチェック"""
+        health = await document_pipeline.health_check()
+
+        assert health["status"] == "healthy"
+        assert "blob_storage" in health["components"]
+        assert "search_service" in health["components"]
+        assert "document_parser" in health["components"]
+        assert all(
+            comp["status"] == "healthy" for comp in health["components"].values()
+        )
+
+    @pytest.mark.asyncio
+    async def test_health_check_degraded(self, document_pipeline, mock_blob_storage):
+        """一部コンポーネント異常時のヘルスチェック"""
+        # Blob Storageを異常状態にする
+        mock_blob_storage.health_check.return_value = False
+
+        health = await document_pipeline.health_check()
+
+        assert health["status"] == "degraded"
+        assert health["components"]["blob_storage"]["status"] == "unhealthy"
+
+    def test_get_supported_file_types(self, document_pipeline, mock_document_parser):
+        """サポートファイル形式取得のテスト"""
+        supported_types = document_pipeline.get_supported_file_types()
+
+        mock_document_parser.get_supported_types.assert_called_once()
+        assert supported_types == {"text/plain": "txt"}
+
+    def test_is_supported_file_type(self, document_pipeline, mock_document_parser):
+        """ファイル形式サポート判定のテスト"""
+        result = document_pipeline.is_supported_file_type("text/plain")
+
+        mock_document_parser.is_supported_type.assert_called_once_with("text/plain")
+        assert result is True

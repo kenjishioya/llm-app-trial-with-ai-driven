@@ -3,6 +3,8 @@ GraphQL統合テスト（モック適用版）
 """
 
 import uuid
+import pytest
+from unittest.mock import patch, AsyncMock
 
 
 class TestGraphQLWithMocks:
@@ -253,26 +255,304 @@ class TestGraphQLWithMocks:
         assert "data" in data
         assert data["data"]["session"] is None
 
-    def test_graphql_schema_introspection(self, client, patch_llm_service):
-        """GraphQLスキーマイントロスペクションテスト"""
+    @pytest.mark.asyncio
+    async def test_graphql_schema_introspection(self, client, patch_llm_service):
+        """GraphQLスキーマのイントロスペクションテスト"""
         query = """
-        query {
+        query IntrospectionQuery {
             __schema {
                 types {
                     name
+                    kind
                 }
             }
         }
         """
+
         response = client.post("/graphql", json={"query": query})
         assert response.status_code == 200
 
         data = response.json()
         assert "data" in data
         assert "__schema" in data["data"]
-        assert "types" in data["data"]["__schema"]
+
+        # 型名を取得
+        type_names = [t["name"] for t in data["data"]["__schema"]["types"]]
 
         # 基本的な型が存在することを確認
-        type_names = [t["name"] for t in data["data"]["__schema"]["types"]]
         assert "Query" in type_names
         assert "Mutation" in type_names
+        assert "Subscription" in type_names
+        assert "SessionType" in type_names
+        assert "MessageType" in type_names
+        assert "DocumentType" in type_names
+        assert "SearchResultType" in type_names
+
+    @pytest.mark.asyncio
+    async def test_search_documents_query(self, client, patch_llm_service):
+        """ドキュメント検索クエリのテスト"""
+        query = """
+        query SearchDocuments($input: SearchInput!) {
+            searchDocuments(input: $input) {
+                query
+                totalCount
+                executionTimeMs
+                documents {
+                    id
+                    title
+                    content
+                    score
+                    source
+                    url
+                    metadata {
+                        fileType
+                        fileSize
+                        createdAt
+                        chunkIndex
+                        chunkCount
+                    }
+                }
+            }
+        }
+        """
+
+        variables = {"input": {"query": "テスト検索", "topK": 5}}
+
+        # RAGServiceのモック設定
+        with patch("services.rag_service.RAGService") as mock_rag_service:
+            mock_instance = mock_rag_service.return_value
+            mock_instance.search_documents = AsyncMock(
+                return_value=[
+                    {
+                        "id": "doc1",
+                        "title": "テストドキュメント",
+                        "content": "テスト内容",
+                        "score": 0.85,
+                        "source": "test.pdf",
+                        "url": "https://example.com/test.pdf",
+                        "metadata": {
+                            "file_type": "pdf",
+                            "file_size": 1024,
+                            "created_at": "2025-06-12T00:00:00Z",
+                            "chunk_index": 0,
+                            "chunk_count": 1,
+                        },
+                    }
+                ]
+            )
+
+            response = client.post(
+                "/graphql", json={"query": query, "variables": variables}
+            )
+            assert response.status_code == 200
+
+            data = response.json()
+            assert "data" in data
+            assert "searchDocuments" in data["data"]
+
+            search_result = data["data"]["searchDocuments"]
+            assert search_result["query"] == "テスト検索"
+            assert search_result["totalCount"] == 1
+            assert len(search_result["documents"]) == 1
+
+            document = search_result["documents"][0]
+            assert document["id"] == "doc1"
+            assert document["title"] == "テストドキュメント"
+            assert document["score"] == 0.85
+
+    @pytest.mark.asyncio
+    async def test_upload_document_mutation(self, client, patch_llm_service):
+        """ドキュメントアップロードミューテーションのテスト"""
+        mutation = """
+        mutation UploadDocument($input: UploadDocumentInput!) {
+            uploadDocument(input: $input) {
+                documentId
+                fileName
+                status
+                message
+                chunksCreated
+            }
+        }
+        """
+
+        # Base64エンコードされたテストファイル内容
+        import base64
+
+        test_content = "これはテスト用のドキュメント内容です。"
+        encoded_content = base64.b64encode(test_content.encode()).decode()
+
+        variables = {
+            "input": {
+                "fileName": "test.txt",
+                "fileContent": encoded_content,
+                "fileType": "text/plain",
+                "title": "テストドキュメント",
+                "metadata": '{"author": "test_user"}',
+            }
+        }
+
+        # DocumentPipelineのモック設定
+        with patch("services.document_pipeline.DocumentPipeline") as mock_pipeline:
+            mock_instance = mock_pipeline.return_value
+            mock_instance.process_document = AsyncMock(
+                return_value={
+                    "status": "completed",
+                    "document_id": "doc123",
+                    "chunks_created": 1,
+                }
+            )
+
+            response = client.post(
+                "/graphql", json={"query": mutation, "variables": variables}
+            )
+            assert response.status_code == 200
+
+            data = response.json()
+            assert "data" in data
+            assert "uploadDocument" in data["data"]
+
+            upload_result = data["data"]["uploadDocument"]
+            assert upload_result["documentId"] == "doc123"
+            assert upload_result["fileName"] == "test.txt"
+            assert upload_result["status"] == "success"
+            assert upload_result["chunksCreated"] == 1
+
+    @pytest.mark.asyncio
+    async def test_upload_document_error_handling(self, client, patch_llm_service):
+        """ドキュメントアップロードのエラーハンドリングテスト"""
+        mutation = """
+        mutation UploadDocument($input: UploadDocumentInput!) {
+            uploadDocument(input: $input) {
+                documentId
+                fileName
+                status
+                message
+                chunksCreated
+            }
+        }
+        """
+
+        variables = {
+            "input": {
+                "fileName": "invalid.txt",
+                "fileContent": "invalid_base64_content",  # 無効なBase64
+                "fileType": "text/plain",
+            }
+        }
+
+        response = client.post(
+            "/graphql", json={"query": mutation, "variables": variables}
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "data" in data
+        assert "uploadDocument" in data["data"]
+
+        upload_result = data["data"]["uploadDocument"]
+        assert upload_result["status"] == "error"
+        assert "Base64デコードエラー" in upload_result["message"]
+        assert upload_result["chunksCreated"] == 0
+
+    @pytest.mark.asyncio
+    async def test_search_documents_with_filters(self, client, patch_llm_service):
+        """フィルタ付きドキュメント検索のテスト"""
+        query = """
+        query SearchDocuments($input: SearchInput!) {
+            searchDocuments(input: $input) {
+                query
+                totalCount
+                documents {
+                    id
+                    title
+                    metadata {
+                        fileType
+                    }
+                }
+            }
+        }
+        """
+
+        variables = {
+            "input": {"query": "PDF検索", "topK": 10, "filters": '{"file_type": "pdf"}'}
+        }
+
+        # RAGServiceのモック設定
+        with patch("services.rag_service.RAGService") as mock_rag_service:
+            mock_instance = mock_rag_service.return_value
+            mock_instance.search_documents = AsyncMock(return_value=[])
+
+            response = client.post(
+                "/graphql", json={"query": query, "variables": variables}
+            )
+            assert response.status_code == 200
+
+            data = response.json()
+            assert "data" in data
+            assert "searchDocuments" in data["data"]
+
+            # フィルタが適切に渡されたか確認
+            mock_instance.search_documents.assert_called_once()
+            call_args = mock_instance.search_documents.call_args
+            assert call_args[1]["filters"] == {"file_type": "pdf"}
+
+    @pytest.mark.asyncio
+    async def test_session_with_citations(self, client, patch_llm_service):
+        """引用情報付きセッション取得のテスト"""
+        # まずセッションを作成
+        create_mutation = """
+        mutation CreateSession($input: SessionInput!) {
+            createSession(input: $input) {
+                id
+                title
+            }
+        }
+        """
+
+        create_variables = {"input": {"title": "引用テストセッション"}}
+        create_response = client.post(
+            "/graphql", json={"query": create_mutation, "variables": create_variables}
+        )
+        assert create_response.status_code == 200
+
+        session_id = create_response.json()["data"]["createSession"]["id"]
+
+        # セッション詳細取得クエリ
+        query = """
+        query GetSession($id: String!) {
+            session(id: $id) {
+                id
+                title
+                messages {
+                    id
+                    role
+                    content
+                    citations {
+                        id
+                        title
+                        content
+                        score
+                        source
+                        url
+                    }
+                    metaData
+                }
+            }
+        }
+        """
+
+        variables = {"id": session_id}
+
+        response = client.post(
+            "/graphql", json={"query": query, "variables": variables}
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "data" in data
+        assert "session" in data["data"]
+
+        session = data["data"]["session"]
+        assert session["id"] == session_id
+        assert session["title"] == "引用テストセッション"
+        assert isinstance(session["messages"], list)

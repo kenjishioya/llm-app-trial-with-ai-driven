@@ -4,10 +4,14 @@ GraphQL Mutation リゾルバ
 
 import strawberry
 import uuid
+import json
+import base64
 from typing import Optional
 
 from api.types import SessionType, SessionInput, AskInput, AskPayload
+from api.types.document import UploadDocumentInput, UploadDocumentPayload
 from services import SessionService, RAGService
+from services.document_pipeline import DocumentPipeline
 from deps import get_db
 
 
@@ -96,3 +100,61 @@ class Mutation:
             )
         # Fallback for mypy
         raise RuntimeError("Database session not available")
+
+    @strawberry.mutation
+    async def upload_document(
+        self, input: UploadDocumentInput
+    ) -> UploadDocumentPayload:
+        """ドキュメントアップロード"""
+        try:
+            # Base64デコード
+            try:
+                file_content = base64.b64decode(input.file_content)
+            except Exception as decode_error:
+                return UploadDocumentPayload(
+                    document_id="",
+                    file_name=input.file_name,
+                    status="error",
+                    message=f"Base64デコードエラー: {str(decode_error)}",
+                    chunks_created=0,
+                )
+
+            # メタデータをJSONから辞書に変換
+            metadata = {}
+            if input.metadata:
+                try:
+                    metadata = json.loads(input.metadata)
+                except json.JSONDecodeError:
+                    metadata = {}
+
+            # ドキュメント処理パイプライン実行
+            pipeline = DocumentPipeline()
+
+            result = await pipeline.process_document(
+                file_content=file_content,
+                filename=input.file_name,
+                content_type=input.file_type,
+                metadata=metadata,
+            )
+
+            # ProcessingResultオブジェクトから値を取得
+            return UploadDocumentPayload(
+                document_id=result.document_id,
+                file_name=input.file_name,
+                status="success" if not result.errors else "error",
+                message=(
+                    "ドキュメントが正常にアップロードされました"
+                    if not result.errors
+                    else f"エラー: {'; '.join(result.errors)}"
+                ),
+                chunks_created=result.chunks_count,
+            )
+
+        except Exception as e:
+            return UploadDocumentPayload(
+                document_id="",
+                file_name=input.file_name,
+                status="error",
+                message=f"アップロードエラー: {str(e)}",
+                chunks_created=0,
+            )

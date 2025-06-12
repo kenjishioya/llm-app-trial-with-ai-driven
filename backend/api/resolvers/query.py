@@ -3,13 +3,21 @@ GraphQL Query リゾルバ
 """
 
 import strawberry
-from typing import List, Optional
+import json
+import time
+from typing import List, Optional, Any
 from datetime import datetime
 from dataclasses import dataclass
 
-from api.types import SessionType, MessageType
+from api.types import SessionType, MessageType, CitationType
 from api.types.message import MessageRole as GraphQLMessageRole
-from services import SessionService
+from api.types.document import (
+    SearchResultType,
+    SearchInput,
+    DocumentType,
+    DocumentMetadataType,
+)
+from services import SessionService, RAGService
 from deps import get_db
 
 
@@ -54,11 +62,12 @@ class Query:
                         messages=[
                             MessageType(
                                 id=msg.id,
+                                session_id=session.id,
                                 role=GraphQLMessageRole(msg.role.value),
                                 content=msg.content,
                                 created_at=msg.created_at.isoformat(),
-                                citations=[],  # JSON文字列から変換
-                                meta_data={},  # JSON文字列から変換
+                                citations=self._parse_citations(msg.citations),
+                                meta_data=self._parse_metadata(msg.meta_data),
                             )
                             for msg in session.messages[:5]  # 最新5件のみ
                         ],
@@ -99,11 +108,12 @@ class Query:
             messages = [
                 MessageType(
                     id=msg.id,
+                    session_id=session.id,
                     role=GraphQLMessageRole(msg.role.value),
                     content=msg.content,
                     created_at=msg.created_at.isoformat(),
-                    citations=[],  # JSON文字列から変換
-                    meta_data={},  # JSON文字列から変換
+                    citations=self._parse_citations(msg.citations),
+                    meta_data=self._parse_metadata(msg.meta_data),
                 )
                 for msg in session.messages
             ]
@@ -118,3 +128,96 @@ class Query:
                 messages=messages,
             )
         return None  # Fallback return for mypy
+
+    @strawberry.field
+    async def search_documents(self, input: SearchInput) -> SearchResultType:
+        """ドキュメント検索"""
+        start_time = time.time()
+
+        async for db in get_db():
+            rag_service = RAGService(db)
+
+            # フィルタをJSONから辞書に変換
+            filters = None
+            if input.filters:
+                try:
+                    filters = json.loads(input.filters)
+                except json.JSONDecodeError:
+                    filters = None
+
+            # ドキュメント検索実行
+            results = await rag_service.search_documents(
+                query=input.query,
+                top_k=input.top_k or 10,
+                filters=filters,
+            )
+
+            # 結果をGraphQL型に変換
+            documents = []
+            for result in results:
+                metadata = DocumentMetadataType(
+                    file_type=result["metadata"]["file_type"],
+                    file_size=result["metadata"]["file_size"],
+                    created_at=result["metadata"]["created_at"],
+                    chunk_index=result["metadata"]["chunk_index"],
+                    chunk_count=result["metadata"]["chunk_count"],
+                )
+
+                document = DocumentType(
+                    id=result["id"],
+                    title=result["title"],
+                    content=result["content"],
+                    score=result["score"],
+                    source=result["source"],
+                    url=result["url"],
+                    metadata=metadata,
+                )
+                documents.append(document)
+
+            execution_time_ms = int((time.time() - start_time) * 1000)
+
+            return SearchResultType(
+                query=input.query,
+                total_count=len(documents),
+                documents=documents,
+                execution_time_ms=execution_time_ms,
+            )
+
+        # Fallback return for mypy
+        return SearchResultType(
+            query=input.query,
+            total_count=0,
+            documents=[],
+            execution_time_ms=0,
+        )
+
+    def _parse_citations(self, citations_json: Optional[str]) -> List[CitationType]:
+        """引用情報JSONを構造化データに変換"""
+        if not citations_json:
+            return []
+
+        try:
+            citations_data = json.loads(citations_json)
+            return [
+                CitationType(
+                    id=citation.get("id", 0),
+                    title=citation.get("title", ""),
+                    content=citation.get("content", ""),
+                    score=citation.get("score", 0.0),
+                    source=citation.get("source", ""),
+                    url=citation.get("url", ""),
+                )
+                for citation in citations_data
+            ]
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    def _parse_metadata(self, metadata_json: Optional[str]) -> Any:
+        """メタデータJSONをパース（JSON型として返却）"""
+        if not metadata_json:
+            return {}
+
+        try:
+            return json.loads(metadata_json)
+        except (json.JSONDecodeError, TypeError):
+            return {}

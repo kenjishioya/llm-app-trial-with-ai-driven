@@ -4,11 +4,13 @@
 
 import strawberry
 from typing import List, Optional
+from dataclasses import dataclass
 
 from .message import MessageType
 
 
 @strawberry.type
+@dataclass
 class SessionType:
     """セッション型"""
 
