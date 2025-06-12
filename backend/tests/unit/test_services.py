@@ -560,3 +560,227 @@ class TestSearchService:
         assert result["configuration"]["endpoint_configured"] is True
         assert result["configuration"]["api_key_configured"] is True
         assert result["configuration"]["index_name_configured"] is True
+
+
+class TestBlobStorageService:
+    """BlobStorageServiceのテストクラス"""
+
+    @pytest.fixture
+    def mock_blob_service_client(self):
+        """BlobServiceClientのモック"""
+        from unittest.mock import AsyncMock, MagicMock
+
+        mock_client = AsyncMock()
+        mock_client.get_account_information = AsyncMock()
+        mock_client.get_container_client = MagicMock()
+        mock_client.get_blob_client = MagicMock()
+        mock_client.close = AsyncMock()
+        return mock_client
+
+    @pytest.fixture
+    def mock_settings(self):
+        """設定のモック"""
+        from unittest.mock import MagicMock
+
+        mock_settings = MagicMock()
+        mock_settings.azure_storage_account_name = "teststorage"
+        mock_settings.azure_storage_account_key = "test-key"  # pragma: allowlist secret
+        mock_settings.azure_storage_container_name = "test-container"
+        return mock_settings
+
+    @pytest.fixture
+    def blob_storage_service(
+        self, monkeypatch, mock_settings, mock_blob_service_client
+    ):
+        """BlobStorageServiceのテスト用インスタンス"""
+        from services.blob_storage_service import BlobStorageService
+
+        # 設定をモック
+        monkeypatch.setattr(
+            "services.blob_storage_service.get_settings", lambda: mock_settings
+        )
+
+        # BlobServiceClientをモック
+        monkeypatch.setattr(
+            "services.blob_storage_service.BlobServiceClient",
+            lambda account_url, credential: mock_blob_service_client,
+        )
+
+        service = BlobStorageService()
+        service._client = mock_blob_service_client
+        return service
+
+    @pytest.mark.asyncio
+    async def test_health_check_healthy(
+        self, blob_storage_service, mock_blob_service_client
+    ):
+        """ヘルスチェック成功のテスト"""
+        # モックコンテナクライアントを設定
+        mock_container_client = AsyncMock()
+        mock_container_client.get_container_properties = AsyncMock()
+        mock_blob_service_client.get_container_client.return_value = (
+            mock_container_client
+        )
+
+        # テスト実行
+        result = await blob_storage_service.health_check()
+
+        # 検証
+        assert result is True
+        mock_blob_service_client.get_container_client.assert_called_once_with(
+            "test-container"
+        )
+        mock_container_client.get_container_properties.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_health_check_unhealthy_no_client(self):
+        """クライアント未初期化時のヘルスチェックテスト"""
+        from services.blob_storage_service import BlobStorageService
+
+        # クライアント未初期化のBlobStorageService
+        service = BlobStorageService.__new__(BlobStorageService)
+        service._client = None
+
+        # テスト実行
+        result = await service.health_check()
+
+        # 検証
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_upload_document_success(
+        self, blob_storage_service, mock_blob_service_client
+    ):
+        """ドキュメントアップロード成功のテスト"""
+        from azure.core.exceptions import ResourceExistsError
+
+        # モックコンテナクライアントとBlobクライアントを設定
+        mock_container_client = AsyncMock()
+        mock_container_client.create_container = AsyncMock(
+            side_effect=ResourceExistsError("Container exists")
+        )
+        mock_blob_service_client.get_container_client.return_value = (
+            mock_container_client
+        )
+
+        mock_blob_client = AsyncMock()
+        mock_blob_client.upload_blob = AsyncMock()
+        mock_blob_client.url = (
+            "https://teststorage.blob.core.windows.net/test-container/test.txt"
+        )
+        mock_blob_service_client.get_blob_client.return_value = mock_blob_client
+
+        # テスト実行
+        test_content = b"Test document content"
+        result = await blob_storage_service.upload_document(
+            file_name="test.txt",
+            file_content=test_content,
+            content_type="text/plain",
+            metadata={"test": "true"},
+        )
+
+        # 検証
+        assert (
+            result
+            == "https://teststorage.blob.core.windows.net/test-container/test.txt"
+        )
+        mock_blob_client.upload_blob.assert_called_once()
+
+        # upload_blobの引数を検証
+        call_args = mock_blob_client.upload_blob.call_args
+        assert call_args[1]["data"] == test_content
+        assert call_args[1]["content_type"] == "text/plain"
+        assert call_args[1]["overwrite"] is True
+        assert "uploaded_at" in call_args[1]["metadata"]
+
+    @pytest.mark.asyncio
+    async def test_download_document_success(
+        self, blob_storage_service, mock_blob_service_client
+    ):
+        """ドキュメントダウンロード成功のテスト"""
+        # モックBlobクライアントを設定
+        mock_blob_client = AsyncMock()
+        mock_download_stream = AsyncMock()
+        mock_download_stream.readall = AsyncMock(return_value=b"Test document content")
+        mock_blob_client.download_blob = AsyncMock(return_value=mock_download_stream)
+        mock_blob_service_client.get_blob_client.return_value = mock_blob_client
+
+        # テスト実行
+        result = await blob_storage_service.download_document("test.txt")
+
+        # 検証
+        assert result == b"Test document content"
+        mock_blob_client.download_blob.assert_called_once()
+        mock_download_stream.readall.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_download_document_not_found(
+        self, blob_storage_service, mock_blob_service_client
+    ):
+        """ドキュメント未発見時のテスト"""
+        from azure.core.exceptions import ResourceNotFoundError
+        from services.blob_storage_service import BlobStorageError
+
+        # ResourceNotFoundErrorを発生させる
+        mock_blob_client = AsyncMock()
+        mock_blob_client.download_blob = AsyncMock(
+            side_effect=ResourceNotFoundError("Blob not found")
+        )
+        mock_blob_service_client.get_blob_client.return_value = mock_blob_client
+
+        # テスト実行とエラー検証
+        with pytest.raises(BlobStorageError, match="Document not found"):
+            await blob_storage_service.download_document("nonexistent.txt")
+
+    @pytest.mark.asyncio
+    async def test_get_service_info_healthy(
+        self, blob_storage_service, mock_blob_service_client
+    ):
+        """サービス情報取得（正常時）のテスト"""
+        from unittest.mock import MagicMock
+        from datetime import datetime
+
+        # モックアカウント情報を設定
+        mock_account_info = {"account_kind": "StorageV2", "sku_name": "Standard_LRS"}
+        mock_blob_service_client.get_account_information = AsyncMock(
+            return_value=mock_account_info
+        )
+
+        # モックコンテナプロパティを設定
+        mock_container_client = AsyncMock()
+        mock_container_props = MagicMock()
+        mock_container_props.last_modified = datetime(2024, 1, 1, 12, 0, 0)
+        mock_container_client.get_container_properties = AsyncMock(
+            return_value=mock_container_props
+        )
+        mock_blob_service_client.get_container_client.return_value = (
+            mock_container_client
+        )
+
+        # テスト実行
+        result = await blob_storage_service.get_service_info()
+
+        # 検証
+        assert result["status"] == "healthy"
+        assert result["account_name"] == "teststorage"
+        assert result["container_name"] == "test-container"
+        assert result["account_kind"] == "StorageV2"
+        assert result["sku_name"] == "Standard_LRS"
+        assert result["container_last_modified"] == "2024-01-01T12:00:00"
+
+    @pytest.mark.asyncio
+    async def test_get_service_info_not_configured(self):
+        """サービス情報取得（未設定時）のテスト"""
+        from services.blob_storage_service import BlobStorageService
+
+        # クライアント未初期化のBlobStorageService
+        service = BlobStorageService.__new__(BlobStorageService)
+        service._client = None
+
+        # テスト実行
+        result = await service.get_service_info()
+
+        # 検証
+        assert result["status"] == "not_configured"
+        assert result["account_name"] is None
+        assert result["container_name"] is None
