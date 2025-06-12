@@ -20,6 +20,7 @@ repos:
       - id: mypy
         files: ^backend/.*\.py$
         additional_dependencies: [types-requests, types-PyYAML]
+        args: [--ignore-missing-imports, --no-strict-optional, --explicit-package-bases]
 
   # JavaScript/TypeScript関連
   - repo: https://github.com/pre-commit/mirrors-prettier

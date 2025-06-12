@@ -9,11 +9,11 @@ from providers import LLMProviderFactory, ILLMProvider, LLMResponse, LLMError
 class LLMService:
     """LLMサービス"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.provider: Optional[ILLMProvider] = None
         self._initialize_provider()
 
-    def _initialize_provider(self):
+    def _initialize_provider(self) -> None:
         """プロバイダーを初期化"""
         provider_name = LLMProviderFactory.get_available_provider()
         if provider_name:
@@ -48,12 +48,13 @@ class LLMService:
         if not self.provider:
             raise LLMError("No LLM provider available")
 
-        async for chunk in self.provider.stream(
+        stream_gen = self.provider.stream(
             prompt=prompt,
             system_message=system_message,
             max_tokens=max_tokens,
             temperature=temperature,
-        ):
+        )
+        async for chunk in stream_gen:
             yield chunk
 
     async def health_check(self) -> bool:

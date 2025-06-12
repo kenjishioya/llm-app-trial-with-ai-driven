@@ -28,7 +28,8 @@ class SessionService:
         """セッションIDでセッションを取得"""
         stmt = select(Session).where(Session.id == session_id)
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        session = result.scalar_one_or_none()
+        return session if isinstance(session, Session) else None
 
     async def get_session_with_messages(self, session_id: str) -> Optional[Session]:
         """メッセージ付きでセッションを取得"""
@@ -38,7 +39,8 @@ class SessionService:
             .where(Session.id == session_id)
         )
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        session = result.scalar_one_or_none()
+        return session if isinstance(session, Session) else None
 
     async def get_sessions(self, limit: int = 50, offset: int = 0) -> List[Session]:
         """セッション一覧を取得"""
@@ -49,7 +51,8 @@ class SessionService:
             .offset(offset)
         )
         result = await self.db.execute(stmt)
-        return result.scalars().all()
+        sessions = result.scalars().all()
+        return [s for s in sessions if isinstance(s, Session)]
 
     async def get_sessions_with_messages(
         self, limit: int = 50, offset: int = 0
@@ -63,7 +66,8 @@ class SessionService:
             .offset(offset)
         )
         result = await self.db.execute(stmt)
-        return result.scalars().all()
+        sessions = result.scalars().all()
+        return [s for s in sessions if isinstance(s, Session)]
 
     async def update_session(self, session_id: str, title: str) -> Optional[Session]:
         """セッションを更新"""
@@ -75,11 +79,12 @@ class SessionService:
         )
         result = await self.db.execute(stmt)
         await self.db.commit()
-        return result.scalar_one_or_none()
+        session = result.scalar_one_or_none()
+        return session if isinstance(session, Session) else None
 
     async def delete_session(self, session_id: str) -> bool:
         """セッションを削除"""
         stmt = delete(Session).where(Session.id == session_id)
         result = await self.db.execute(stmt)
         await self.db.commit()
-        return result.rowcount > 0
+        return bool(result.rowcount > 0)

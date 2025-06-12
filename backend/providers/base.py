@@ -64,6 +64,33 @@ class ILLMProvider(ABC):
         """ストリーミングテキスト生成"""
         pass
 
+    async def stream(
+        self,
+        prompt: str,
+        system_message: Optional[str] = None,
+        model: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        **kwargs
+    ) -> AsyncGenerator[LLMResponse, None]:
+        """ストリーミングレスポンス生成（デフォルト実装）"""
+        # デフォルト実装：stream_generateを使ってLLMResponseに変換
+        stream_gen = self.stream_generate(
+            prompt=prompt,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            **kwargs
+        )
+        async for content in stream_gen:  # type: ignore
+            yield LLMResponse(
+                content=content,
+                provider=self.provider_name,
+                model=model or self.default_model,
+                usage=None,
+                metadata={"chunk": True},
+            )
+
     @abstractmethod
     async def is_available(self) -> bool:
         """プロバイダーが利用可能かチェック"""

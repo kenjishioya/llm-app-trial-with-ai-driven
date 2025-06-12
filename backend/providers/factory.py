@@ -40,20 +40,25 @@ class LLMProviderFactory:
         try:
             # プロバイダー固有の設定
             if provider_name == "mock":
-                return provider_class()
+                mock_provider: ILLMProvider = provider_class()
+                return mock_provider
             elif provider_name == "openrouter":
                 if not settings.openrouter_api_key:
                     logger.warning("OpenRouter API key not configured")
                     return None
-                return provider_class(
+                openrouter_provider: ILLMProvider = provider_class(
                     api_key=settings.openrouter_api_key,
                     base_url="https://openrouter.ai/api/v1",
                 )
+                return openrouter_provider
             elif provider_name == "google_ai":
                 if not settings.google_ai_api_key:
                     logger.warning("Google AI API key not configured")
                     return None
-                return provider_class(api_key=settings.google_ai_api_key)
+                google_provider: ILLMProvider = provider_class(
+                    api_key=settings.google_ai_api_key
+                )
+                return google_provider
 
         except Exception as e:
             logger.error(

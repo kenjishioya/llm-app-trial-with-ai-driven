@@ -133,12 +133,37 @@ class GoogleAIProvider(ILLMProvider):
             logger.error("Google AI streaming unexpected error", error=str(e))
             raise LLMError(f"Google AI streaming error: {str(e)}")
 
+    async def stream(
+        self,
+        prompt: str,
+        system_message: Optional[str] = None,
+        model: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        **kwargs,
+    ) -> AsyncGenerator[LLMResponse, None]:
+        """ストリーミングレスポンス生成"""
+        async for content in self.stream_generate(
+            prompt=prompt,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            **kwargs,
+        ):
+            yield LLMResponse(
+                content=content,
+                provider=self.provider_name,
+                model=model or self.default_model,
+                usage=None,
+                metadata={"chunk": True},
+            )
+
     async def is_available(self) -> bool:
         """プロバイダーが利用可能かチェック"""
         try:
             # Google AI APIの場合、モデル一覧取得でヘルスチェック
             response = await self.client.get(f"/models/{self.default_model}")
-            return response.status_code == 200
+            return bool(response.status_code == 200)
         except Exception:
             return False
 

@@ -197,7 +197,7 @@ class OpenRouterProvider(ILLMProvider):
         """プロバイダーが利用可能かチェック"""
         try:
             response = await self.client.get("/models")
-            return response.status_code == 200
+            return bool(response.status_code == 200)
         except Exception:
             return False
 

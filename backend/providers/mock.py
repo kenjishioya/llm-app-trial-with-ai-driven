@@ -77,6 +77,31 @@ class MockLLMProvider(ILLMProvider):
             char_content: str = char
             yield char_content
 
+    async def stream(
+        self,
+        prompt: str,
+        system_message: Optional[str] = None,
+        model: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        **kwargs,
+    ) -> AsyncGenerator[LLMResponse, None]:
+        """モックストリーミングレスポンス生成"""
+        async for content in self.stream_generate(
+            prompt=prompt,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            **kwargs,
+        ):
+            yield LLMResponse(
+                content=content,
+                provider=self.provider_name,
+                model=model or self.default_model,
+                usage=None,
+                metadata={"chunk": True, "mock": True},
+            )
+
     async def is_available(self) -> bool:
         """プロバイダーが利用可能かチェック"""
         return True  # モックは常に利用可能
