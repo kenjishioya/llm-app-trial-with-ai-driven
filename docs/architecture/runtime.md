@@ -50,40 +50,54 @@ sequenceDiagram
   participant User as 🧑 利用者
   participant UI as Next.js UI
   participant API as FastAPI
-  participant AG as DeepResearchAgent
-  participant PLAN as PlannerLLM
+  participant AG as DeepResearchLangGraphAgent
+  participant RN as RetrieveNode
+  participant DN as DecideNode
+  participant AN as AnswerNode
   participant SEARCH as Azure AI Search
-  participant SUM as SummarizerLLM
-  participant WRITE as WriterLLM
   participant DB as Cosmos DB
 
   User->>UI: Deep Research ボタン押下 + 質問
   UI->>API: mutation deepResearch()
   API->>AG: run(question)
-  AG->>PLAN: plan()
-  PLAN-->>AG: queryList[Q1,Q2,Q3]
-  loop 各クエリ (最大3回)
-    AG->>SEARCH: search(Qi)
-    SEARCH-->>AG: snippets
-    AG->>SUM: summarize(snippets)
-    SUM-->>AG: partialSummary
-    AG->>DB: INSERT research_notes(step_i)
-    AG->>API: progress(step_i)
+  loop Retrieve-Decide循環 (最大3回)
+    AG->>RN: execute(state)
+    RN->>SEARCH: search(query)
+    SEARCH-->>RN: documents
+    RN-->>AG: state with retrieved_docs
+    AG->>DB: INSERT research_notes(retrieve_step)
+    AG->>API: progress("Retrieving...")
     API-->>UI: SSE progress
+
+    AG->>DN: execute(state)
+    DN->>DN: 検索結果十分性判定
+    DN-->>AG: continue/stop decision
+    AG->>DB: INSERT research_notes(decide_step)
+    AG->>API: progress("Deciding...")
+    API-->>UI: SSE progress
+
+    alt 検索結果不十分 & cycle < MAX
+      Note over AG: 次の循環へ
+    else 検索結果十分 or cycle >= MAX
+      break 循環終了
+    end
   end
-  AG->>WRITE: write_report(allSummaries)
-  WRITE-->>AG: report.md
+  AG->>AN: execute(state)
+  AN->>AN: 構造化レポート生成
+  AN-->>AG: final_report.md
   AG->>DB: INSERT messages(final)
+  AG->>API: progress("Answering...")
+  API-->>UI: SSE progress
   AG-->>API: stream(report.md)
   API-->>UI: SSE report
-  UI-->>User: 完了 (最大 120 s)
+  UI-->>User: 完了 (最大 120 s)
 ```
 
 ### ランタイム特性
 
-* **並列処理** — `summarize` は `asyncio.gather` で並列化し、ステップ当たり 300–700 ms を目標。
-* **ステータス更新** — UI へは `progress` イベントを 1 ステップ完了ごとに送信し "Step 1/3 完了" を表示。
-* **キャンセル** — ユーザーが Esc／Cancel を押下すると SSE で `STOP` を送信し、Agent の `asyncio.CancelledError` をトリガして全 LLM 呼び出しをキャンセル。
+* **コスト最適化** — `DecideNode` で検索結果十分性を判定し、不要な検索を回避してトークン使用量を削減。
+* **ステータス更新** — UI へは `progress` イベントを各ノード実行ごとに送信し "Retrieving... → Deciding... → Answering..." を表示。
+* **キャンセル** — ユーザーが Esc／Cancel を押下すると SSE で `STOP` を送信し、LangGraph実行の `asyncio.CancelledError` をトリガして全ノード実行をキャンセル。
 
 ---
 
@@ -99,7 +113,7 @@ sequenceDiagram
 
 ## 4. ランタイム計測・可視化
 
-* **OpenTelemetry** を FastAPI / RagService / DeepResearchAgent に組み込み、Span 名は `rag.search`, `rag.gpt`, `agent.plan`, `agent.summarize` など。
+* **OpenTelemetry** を FastAPI / RagService / DeepResearchLangGraphAgent に組み込み、Span 名は `rag.search`, `rag.gpt`, `agent.retrieve`, `agent.decide`, `agent.answer` など。
 * 開発環境では `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318` で Jaeger UI にタイムライン表示。
 * NFR-01/02 に準拠しているか CI の E2E テスト (`pytest + locust`) で計測。
 
