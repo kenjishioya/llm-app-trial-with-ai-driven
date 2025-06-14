@@ -616,16 +616,21 @@ class TestSearchService:
 
     @pytest.mark.asyncio
     async def test_search_documents_no_client(self):
-        """SearchClient未初期化時のエラーテスト"""
-        from services.search_service import SearchService, SearchServiceError
+        """クライアント未初期化時のフェイルセーフ動作テスト"""
+        from services.search_service import SearchService
 
         # クライアント未初期化のSearchService
         service = SearchService.__new__(SearchService)
         service.search_client = None
 
-        # テスト実行とエラー検証
-        with pytest.raises(SearchServiceError, match="Search client not initialized"):
-            await service.search_documents("test query")
+        # テスト実行 - フェイルセーフとして空の結果が返される
+        result = await service.search_documents("test query")
+
+        # 検証 - エラーではなく空の結果が返されることを確認
+        assert result["documents"] == []
+        assert result["total_count"] == 0
+        assert result["query"] == "test query"
+        assert "parameters" in result
 
     @pytest.mark.asyncio
     @pytest.mark.skip(
