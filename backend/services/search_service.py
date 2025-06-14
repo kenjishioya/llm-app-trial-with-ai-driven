@@ -138,8 +138,25 @@ class SearchService:
     ) -> Dict[str, Any]:
         """ドキュメント検索"""
         try:
+            # Azure Search クライアントが初期化されていない場合は、
+            # ローカル開発用のフェイルセーフとして空の検索結果を返す。
             if not self.search_client:
-                raise SearchServiceError("Search client not initialized")
+                logger.warning(
+                    "Search client not initialized – returning empty search result (dev fallback)"
+                )
+                return {
+                    "documents": [],
+                    "total_count": 0,
+                    "query": query,
+                    "parameters": {
+                        "top": top,
+                        "skip": skip,
+                        "search_fields": search_fields,
+                        "select_fields": select_fields,
+                        "filter": filter_expression,
+                        "order_by": order_by,
+                    },
+                }
 
             # 検索実行
             results = self.search_client.search(

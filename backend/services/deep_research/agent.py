@@ -8,7 +8,7 @@ from langgraph.graph.graph import CompiledGraph
 
 from services.search_service import SearchService
 from services.llm_service import LLMService
-from .state import AgentState
+from .state import AgentState, create_initial_state
 from .retrieve_node import RetrieveNode
 from .decide_node import DecideNode
 from .answer_node import AnswerNode
@@ -62,7 +62,7 @@ class DeepResearchLangGraphAgent:
 
     def _should_continue(self, state: AgentState) -> str:
         """次のノードを決定する条件分岐関数."""
-        if state.is_sufficient or state.search_count >= state.max_searches:
+        if state["is_sufficient"] or state["search_count"] >= state["max_searches"]:
             return "finish"
         else:
             return "continue"
@@ -81,7 +81,7 @@ class DeepResearchLangGraphAgent:
         logger.info(f"DeepResearchAgent: 開始 - Question: {question[:100]}...")
 
         # 初期状態を作成
-        initial_state = AgentState(question=question, session_id=session_id)
+        initial_state = create_initial_state(question, session_id)
 
         try:
             # 進捗メッセージを送信
@@ -94,7 +94,7 @@ class DeepResearchLangGraphAgent:
 
                 if current_node == "retrieve":
                     search_count = event.get("search_count", 0)
-                    yield f"📚 情報を検索中... ({search_count}/{initial_state.max_searches})"
+                    yield f"📚 情報を検索中... ({search_count}/{initial_state['max_searches']})"
 
                 elif current_node == "decide":
                     is_sufficient = event.get("is_sufficient", False)
@@ -109,14 +109,14 @@ class DeepResearchLangGraphAgent:
             # 最終結果を取得
             final_state = await self._get_final_state(initial_state)
 
-            if final_state.error_message:
-                yield f"❌ エラーが発生しました: {final_state.error_message}"
+            if final_state["error_message"]:
+                yield f"❌ エラーが発生しました: {final_state['error_message']}"
             else:
                 yield "✅ Deep Research が完了しました"
-                yield f"📊 レポート生成完了 ({len(final_state.final_report)} 文字)"
+                yield f"📊 レポート生成完了 ({len(final_state['final_report'])} 文字)"
 
                 # 最終レポートを返す
-                yield final_state.final_report
+                yield final_state["final_report"]
 
         except Exception as e:
             logger.error(f"DeepResearchAgent: 実行エラー - {str(e)}")
@@ -134,22 +134,24 @@ class DeepResearchLangGraphAgent:
         """最終状態を取得（同期実行）."""
         try:
             final_result = await self.graph.ainvoke(initial_state)
-            if isinstance(final_result, AgentState):
-                return final_result
+            if isinstance(final_result, dict):
+                return final_result  # type: ignore[return-value]
             else:
                 # 予期しない型の場合はエラー状態を返す
-                error_state = initial_state
-                error_state.error_message = (
+                error_state = initial_state.copy()
+                error_state["error_message"] = (
                     "Unexpected result type from graph execution"
                 )
-                error_state.final_report = "# エラーレポート\n\n予期しない実行結果です"
+                error_state["final_report"] = (
+                    "# エラーレポート\n\n予期しない実行結果です"
+                )
                 return error_state
         except Exception as e:
             logger.error(f"最終状態取得エラー: {str(e)}")
             # エラー時のフォールバック状態
-            error_state = initial_state
-            error_state.error_message = str(e)
-            error_state.final_report = (
+            error_state = initial_state.copy()
+            error_state["error_message"] = str(e)
+            error_state["final_report"] = (
                 f"# エラーレポート\n\n実行中にエラーが発生しました: {str(e)}"
             )
             return error_state
@@ -165,17 +167,23 @@ class DeepResearchLangGraphAgent:
         Returns:
             実行結果の辞書
         """
-        initial_state = AgentState(question=question, session_id=session_id)
+        initial_state = create_initial_state(question, session_id)
 
         try:
             final_state = await self.graph.ainvoke(initial_state)
 
             return {
                 "success": True,
-                "report": final_state.final_report,
-                "search_count": final_state.search_count,
-                "document_count": len(final_state.search_results),
-                "high_relevance_count": len(final_state.get_high_relevance_docs()),
+                "report": final_state["final_report"],
+                "search_count": final_state["search_count"],
+                "document_count": len(final_state["search_results"]),
+                "high_relevance_count": len(
+                    [
+                        r
+                        for r in final_state["search_results"]
+                        if r.score >= final_state["relevance_threshold"]
+                    ]
+                ),
                 "error": None,
             }
 

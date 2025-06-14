@@ -3,7 +3,7 @@
 from typing import Dict, Any
 import logging
 
-from .state import AgentState
+from .state import AgentState, get_high_relevance_docs
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +28,8 @@ class DecideNode:
         logger.info("DecideNode: 検索結果の十分性を判定中")
 
         # 高関連度のドキュメントを取得
-        high_relevance_docs = state.get_high_relevance_docs()
-        total_docs = len(state.search_results)
+        high_relevance_docs = get_high_relevance_docs(state)
+        total_docs = len(state["search_results"])
         high_relevance_count = len(high_relevance_docs)
 
         logger.info(
@@ -43,19 +43,17 @@ class DecideNode:
         if is_sufficient:
             next_node = "answer"
             logger.info("DecideNode: 十分な情報が得られました → Answer へ")
-        elif state.search_count >= state.max_searches:
+        elif state["search_count"] >= state["max_searches"]:
             next_node = "answer"  # 最大検索回数に達した場合も Answer へ
             logger.info("DecideNode: 最大検索回数に達しました → Answer へ")
         else:
             next_node = "retrieve"
             logger.info("DecideNode: 追加検索が必要です → Retrieve へ")
 
-        state.is_sufficient = is_sufficient
-        state.current_node = "decide"
-
         return {
+            **state,
             "is_sufficient": is_sufficient,
-            "current_node": state.current_node,
+            "current_node": "decide",
             "next_node": next_node,
         }
 
@@ -109,7 +107,7 @@ class DecideNode:
 
     def get_decision_summary(self, state: AgentState) -> str:
         """判定結果のサマリーを生成（デバッグ用）."""
-        high_relevance_docs = state.get_high_relevance_docs()
+        high_relevance_docs = get_high_relevance_docs(state)
         unique_sources = set(doc.source for doc in high_relevance_docs)
         avg_score = (
             sum(doc.score for doc in high_relevance_docs) / len(high_relevance_docs)
@@ -123,5 +121,5 @@ class DecideNode:
 - ユニークソース: {len(unique_sources)}/3
 - 平均スコア: {avg_score:.3f}/{self.relevance_threshold + 0.1}
 - 総コンテンツ量: {total_content}/5000文字
-- 検索回数: {state.search_count}/{state.max_searches}
-- 判定結果: {'十分' if state.is_sufficient else '不十分'}"""
+- 検索回数: {state["search_count"]}/{state["max_searches"]}
+- 判定結果: {'十分' if state["is_sufficient"] else '不十分'}"""

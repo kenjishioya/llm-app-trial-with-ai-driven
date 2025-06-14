@@ -98,3 +98,42 @@ export const DELETE_SESSION = gql`
     deleteSession(id: $id)
   }
 `;
+
+/**
+ * Deep Research ミューテーション
+ */
+export const DEEP_RESEARCH_MUTATION = gql`
+  mutation DeepResearch($input: DeepResearchInput!) {
+    deepResearch(input: $input) {
+      researchId
+      sessionId
+      status
+      streamUrl
+      message
+    }
+  }
+`;
+
+/**
+ * Deep Research ストリーミングサブスクリプション
+ */
+export const STREAM_DEEP_RESEARCH_SUBSCRIPTION = gql`
+  subscription StreamDeepResearch(
+    $researchId: String!
+    $sessionId: String!
+    $question: String!
+  ) {
+    streamDeepResearch(
+      researchId: $researchId
+      sessionId: $sessionId
+      question: $question
+    ) {
+      researchId
+      sessionId
+      currentNode
+      progressPercentage
+      content
+      isComplete
+    }
+  }
+`;

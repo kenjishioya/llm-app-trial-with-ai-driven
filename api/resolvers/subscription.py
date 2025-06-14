@@ -92,20 +92,43 @@ class Subscription:
                 )
 
     @strawberry.subscription
-    async def stream_deep_research(
+    async def streamDeepResearch(
         self,
         research_id: str,
         session_id: str,
         question: str,
     ) -> AsyncGenerator[DeepResearchProgress, None]:
         """Deep Research進捗ストリーミング"""
+        # ログ追加: パラメータ受信確認
+        print(f"🔍 Deep Research Subscription called with:")
+        print(f"  research_id: '{research_id}'")
+        print(f"  session_id: '{session_id}'")
+        print(f"  question: '{question}'")
+
         try:
+            # 空文字列チェック
+            if not research_id or not session_id or not question:
+                error_msg = f"Missing required parameters: research_id='{research_id}', session_id='{session_id}', question='{question}'"
+                print(f"❌ {error_msg}")
+                yield DeepResearchProgress(
+                    content=f"Error: {error_msg}",
+                    research_id=research_id or "unknown",
+                    session_id=session_id or "unknown",
+                    is_complete=True,
+                    current_node="error",
+                    progress_percentage=0,
+                )
+                return
+
             # セッションIDをUUIDに変換
             try:
                 uuid.UUID(session_id)  # バリデーションのみ
+                print(f"✅ Session ID validation passed")
             except ValueError:
+                error_msg = f"Invalid session ID format: {session_id}"
+                print(f"❌ {error_msg}")
                 yield DeepResearchProgress(
-                    content="Invalid session ID format",
+                    content=error_msg,
                     research_id=research_id,
                     session_id=session_id,
                     is_complete=True,
@@ -113,6 +136,8 @@ class Subscription:
                     progress_percentage=0,
                 )
                 return
+
+            print(f"🚀 Starting Deep Research agent...")
 
             # Deep Research エージェントを初期化
             agent = DeepResearchLangGraphAgent()
@@ -135,56 +160,45 @@ class Subscription:
                     current_node = "decide"
                 elif "レポート" in progress_message:
                     current_node = "answer"
-                elif "完了" in progress_message:
+
+                # レポート本文(最終)の判定: Markdown ヘッダーで始まる長文
+                is_report = progress_message.lstrip().startswith("# ")
+
+                # 完了判定
+                is_error = "エラー" in progress_message
+                is_final_step = progress_percentage >= 100 or is_report
+                if is_final_step:
                     current_node = "complete"
                     progress_percentage = 100
 
-                is_complete = "完了" in progress_message or "エラー" in progress_message
+                is_complete = is_error or is_final_step
 
-                print(
-                    f"📊 Progress: {progress_percentage}% - {current_node} - {progress_message[:50]}..."
+                print(f"📊 Progress: {progress_percentage}% - {current_node} - {progress_message[:50]}...")
+
+                yield DeepResearchProgress(
+                    content=progress_message,
+                    research_id=research_id,
+                    session_id=session_id,
+                    is_complete=is_complete,
+                    current_node=current_node,
+                    progress_percentage=progress_percentage,
                 )
-                if current_node == "answer":
-                    # progress_message がレポート本文かどうかを判定
-                    if progress_message.startswith("# "):
-                        # 最終レポート本文
-                        yield DeepResearchProgress(
-                            content=progress_message,
-                            research_id=research_id,
-                            session_id=session_id,
-                            is_complete=True,
-                            current_node="complete",
-                            progress_percentage=100,
-                        )
-                        print("✅ Final report sent")
-                        break
-                    else:
-                        # レポート生成中の進捗を通知（完了直前なので 99% とする）
-                        yield DeepResearchProgress(
-                            content="📝 レポートを生成中...",
-                            research_id=research_id,
-                            session_id=session_id,
-                            is_complete=False,
-                            current_node="answer",
-                            progress_percentage=min(progress_percentage, 99),
-                        )
-                else:
-                    yield DeepResearchProgress(
-                        content=progress_message,
-                        research_id=research_id,
-                        session_id=session_id,
-                        is_complete=is_complete,
-                        current_node=current_node,
-                        progress_percentage=progress_percentage,
-                    )
 
-            # 完了メッセージでループを中断しないよう break は行わない。
+                if is_complete:
+                    print(f"✅ Deep Research completed")
+                    break
 
         except Exception as e:
+            error_msg = f"Deep Research Error: {str(e)}"
+            print(f"❌ {error_msg}")
+            print(f"❌ Exception type: {type(e).__name__}")
+            import traceback
+            print(f"❌ Traceback: {traceback.format_exc()}")
+
             yield DeepResearchProgress(
-                content=f"Deep Research Error: {str(e)}",
-                research_id=research_id,
-                session_id=session_id,
+                content=error_msg,
+                research_id=research_id or "unknown",
+                session_id=session_id or "unknown",
                 is_complete=True,
                 current_node="error",
                 progress_percentage=0,

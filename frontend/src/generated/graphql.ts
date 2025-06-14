@@ -29,7 +29,7 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean };
   Int: { input: number; output: number };
   Float: { input: number; output: number };
-  DateTime: { input: any; output: any };
+  JSON: { input: any; output: any };
 };
 
 export type AskInput = {
@@ -45,6 +45,60 @@ export type AskPayload = {
   stream: Scalars["String"]["output"];
 };
 
+export type CitationType = {
+  __typename?: "CitationType";
+  content: Scalars["String"]["output"];
+  id: Scalars["Int"]["output"];
+  score: Scalars["Float"]["output"];
+  source: Scalars["String"]["output"];
+  title: Scalars["String"]["output"];
+  url: Scalars["String"]["output"];
+};
+
+export type DeepResearchInput = {
+  question: Scalars["String"]["input"];
+  sessionId: Scalars["String"]["input"];
+};
+
+export type DeepResearchPayload = {
+  __typename?: "DeepResearchPayload";
+  message?: Maybe<Scalars["String"]["output"]>;
+  researchId: Scalars["String"]["output"];
+  sessionId: Scalars["String"]["output"];
+  status: Scalars["String"]["output"];
+  streamUrl: Scalars["String"]["output"];
+};
+
+export type DeepResearchProgress = {
+  __typename?: "DeepResearchProgress";
+  content: Scalars["String"]["output"];
+  currentNode: Scalars["String"]["output"];
+  isComplete: Scalars["Boolean"]["output"];
+  progressPercentage: Scalars["Int"]["output"];
+  researchId: Scalars["String"]["output"];
+  sessionId: Scalars["String"]["output"];
+};
+
+export type DocumentMetadataType = {
+  __typename?: "DocumentMetadataType";
+  chunkCount: Scalars["Int"]["output"];
+  chunkIndex: Scalars["Int"]["output"];
+  createdAt: Scalars["String"]["output"];
+  fileSize: Scalars["Int"]["output"];
+  fileType: Scalars["String"]["output"];
+};
+
+export type DocumentType = {
+  __typename?: "DocumentType";
+  content: Scalars["String"]["output"];
+  id: Scalars["String"]["output"];
+  metadata: DocumentMetadataType;
+  score: Scalars["Float"]["output"];
+  source: Scalars["String"]["output"];
+  title: Scalars["String"]["output"];
+  url: Scalars["String"]["output"];
+};
+
 export type HealthType = {
   __typename?: "HealthType";
   status: Scalars["String"]["output"];
@@ -58,11 +112,11 @@ export enum MessageRole {
 
 export type MessageType = {
   __typename?: "MessageType";
-  citations?: Maybe<Scalars["String"]["output"]>;
+  citations: Array<CitationType>;
   content: Scalars["String"]["output"];
-  createdAt: Scalars["DateTime"]["output"];
+  createdAt: Scalars["String"]["output"];
   id: Scalars["ID"]["output"];
-  metaData?: Maybe<Scalars["String"]["output"]>;
+  metaData: Scalars["JSON"]["output"];
   role: MessageRole;
   sessionId: Scalars["ID"]["output"];
 };
@@ -71,8 +125,10 @@ export type Mutation = {
   __typename?: "Mutation";
   ask: AskPayload;
   createSession: SessionType;
+  deepResearch: DeepResearchPayload;
   deleteSession: Scalars["Boolean"]["output"];
   updateSession?: Maybe<SessionType>;
+  uploadDocument: UploadDocumentPayload;
 };
 
 export type MutationAskArgs = {
@@ -81,6 +137,10 @@ export type MutationAskArgs = {
 
 export type MutationCreateSessionArgs = {
   input: SessionInput;
+};
+
+export type MutationDeepResearchArgs = {
+  input: DeepResearchInput;
 };
 
 export type MutationDeleteSessionArgs = {
@@ -92,11 +152,20 @@ export type MutationUpdateSessionArgs = {
   input: SessionInput;
 };
 
+export type MutationUploadDocumentArgs = {
+  input: UploadDocumentInput;
+};
+
 export type Query = {
   __typename?: "Query";
   health: HealthType;
+  searchDocuments: SearchResultType;
   session?: Maybe<SessionType>;
   sessions: Array<SessionType>;
+};
+
+export type QuerySearchDocumentsArgs = {
+  input: SearchInput;
 };
 
 export type QuerySessionArgs = {
@@ -105,6 +174,20 @@ export type QuerySessionArgs = {
 
 export type QuerySessionsArgs = {
   includeMessages?: Scalars["Boolean"]["input"];
+};
+
+export type SearchInput = {
+  filters?: InputMaybe<Scalars["String"]["input"]>;
+  query: Scalars["String"]["input"];
+  topK?: InputMaybe<Scalars["Int"]["input"]>;
+};
+
+export type SearchResultType = {
+  __typename?: "SearchResultType";
+  documents: Array<DocumentType>;
+  executionTimeMs: Scalars["Int"]["output"];
+  query: Scalars["String"]["output"];
+  totalCount: Scalars["Int"]["output"];
 };
 
 export type SessionInput = {
@@ -131,12 +214,36 @@ export type StreamChunk = {
 export type Subscription = {
   __typename?: "Subscription";
   streamAnswer: StreamChunk;
+  streamDeepResearch: DeepResearchProgress;
 };
 
 export type SubscriptionStreamAnswerArgs = {
   deepResearch?: Scalars["Boolean"]["input"];
   question: Scalars["String"]["input"];
   sessionId?: InputMaybe<Scalars["String"]["input"]>;
+};
+
+export type SubscriptionStreamDeepResearchArgs = {
+  question: Scalars["String"]["input"];
+  researchId: Scalars["String"]["input"];
+  sessionId: Scalars["String"]["input"];
+};
+
+export type UploadDocumentInput = {
+  fileContent: Scalars["String"]["input"];
+  fileName: Scalars["String"]["input"];
+  fileType: Scalars["String"]["input"];
+  metadata?: InputMaybe<Scalars["String"]["input"]>;
+  title?: InputMaybe<Scalars["String"]["input"]>;
+};
+
+export type UploadDocumentPayload = {
+  __typename?: "UploadDocumentPayload";
+  chunksCreated: Scalars["Int"]["output"];
+  documentId: Scalars["String"]["output"];
+  fileName: Scalars["String"]["output"];
+  message: Scalars["String"]["output"];
+  status: Scalars["String"]["output"];
 };
 
 export type CreateSessionMutationVariables = Exact<{
@@ -185,7 +292,7 @@ export type GetSessionQuery = {
       id: string;
       role: MessageRole;
       content: string;
-      createdAt: any;
+      createdAt: string;
     }>;
   } | null;
 };
@@ -239,6 +346,41 @@ export type DeleteSessionMutationVariables = Exact<{
 export type DeleteSessionMutation = {
   __typename?: "Mutation";
   deleteSession: boolean;
+};
+
+export type DeepResearchMutationVariables = Exact<{
+  input: DeepResearchInput;
+}>;
+
+export type DeepResearchMutation = {
+  __typename?: "Mutation";
+  deepResearch: {
+    __typename?: "DeepResearchPayload";
+    researchId: string;
+    sessionId: string;
+    status: string;
+    streamUrl: string;
+    message?: string | null;
+  };
+};
+
+export type StreamDeepResearchSubscriptionVariables = Exact<{
+  researchId: Scalars["String"]["input"];
+  sessionId: Scalars["String"]["input"];
+  question: Scalars["String"]["input"];
+}>;
+
+export type StreamDeepResearchSubscription = {
+  __typename?: "Subscription";
+  streamDeepResearch: {
+    __typename?: "DeepResearchProgress";
+    researchId: string;
+    sessionId: string;
+    currentNode: string;
+    progressPercentage: number;
+    content: string;
+    isComplete: boolean;
+  };
 };
 
 export const CreateSessionDocument = gql`
@@ -690,3 +832,117 @@ export type DeleteSessionMutationOptions = Apollo.BaseMutationOptions<
   DeleteSessionMutation,
   DeleteSessionMutationVariables
 >;
+export const DeepResearchDocument = gql`
+  mutation DeepResearch($input: DeepResearchInput!) {
+    deepResearch(input: $input) {
+      researchId
+      sessionId
+      status
+      streamUrl
+      message
+    }
+  }
+`;
+export type DeepResearchMutationFn = Apollo.MutationFunction<
+  DeepResearchMutation,
+  DeepResearchMutationVariables
+>;
+
+/**
+ * __useDeepResearchMutation__
+ *
+ * To run a mutation, you first call `useDeepResearchMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useDeepResearchMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [deepResearchMutation, { data, loading, error }] = useDeepResearchMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useDeepResearchMutation(
+  baseOptions?: ApolloReactHooks.MutationHookOptions<
+    DeepResearchMutation,
+    DeepResearchMutationVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return ApolloReactHooks.useMutation<
+    DeepResearchMutation,
+    DeepResearchMutationVariables
+  >(DeepResearchDocument, options);
+}
+export type DeepResearchMutationHookResult = ReturnType<
+  typeof useDeepResearchMutation
+>;
+export type DeepResearchMutationResult =
+  Apollo.MutationResult<DeepResearchMutation>;
+export type DeepResearchMutationOptions = Apollo.BaseMutationOptions<
+  DeepResearchMutation,
+  DeepResearchMutationVariables
+>;
+export const StreamDeepResearchDocument = gql`
+  subscription StreamDeepResearch(
+    $researchId: String!
+    $sessionId: String!
+    $question: String!
+  ) {
+    streamDeepResearch(
+      researchId: $researchId
+      sessionId: $sessionId
+      question: $question
+    ) {
+      researchId
+      sessionId
+      currentNode
+      progressPercentage
+      content
+      isComplete
+    }
+  }
+`;
+
+/**
+ * __useStreamDeepResearchSubscription__
+ *
+ * To run a query within a React component, call `useStreamDeepResearchSubscription` and pass it any options that fit your needs.
+ * When your component renders, `useStreamDeepResearchSubscription` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the subscription, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useStreamDeepResearchSubscription({
+ *   variables: {
+ *      researchId: // value for 'researchId'
+ *      sessionId: // value for 'sessionId'
+ *      question: // value for 'question'
+ *   },
+ * });
+ */
+export function useStreamDeepResearchSubscription(
+  baseOptions: ApolloReactHooks.SubscriptionHookOptions<
+    StreamDeepResearchSubscription,
+    StreamDeepResearchSubscriptionVariables
+  > &
+    (
+      | { variables: StreamDeepResearchSubscriptionVariables; skip?: boolean }
+      | { skip: boolean }
+    ),
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return ApolloReactHooks.useSubscription<
+    StreamDeepResearchSubscription,
+    StreamDeepResearchSubscriptionVariables
+  >(StreamDeepResearchDocument, options);
+}
+export type StreamDeepResearchSubscriptionHookResult = ReturnType<
+  typeof useStreamDeepResearchSubscription
+>;
+export type StreamDeepResearchSubscriptionResult =
+  Apollo.SubscriptionResult<StreamDeepResearchSubscription>;

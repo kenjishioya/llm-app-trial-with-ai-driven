@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 
 from services.llm_service import LLMService
-from .state import AgentState
+from .state import AgentState, get_high_relevance_docs
 
 logger = logging.getLogger(__name__)
 
@@ -31,16 +31,16 @@ class AnswerNode:
 
         try:
             # 高関連度のドキュメントを取得
-            high_relevance_docs = state.get_high_relevance_docs()
+            high_relevance_docs = get_high_relevance_docs(state)
 
             if not high_relevance_docs:
                 # 高関連度ドキュメントがない場合は全ドキュメントを使用
-                high_relevance_docs = state.search_results
+                high_relevance_docs = state["search_results"]
                 logger.warning("高関連度ドキュメントがないため、全検索結果を使用")
 
             # レポート生成用のプロンプトを構築
             report_prompt = self._build_report_prompt(
-                state.question, high_relevance_docs
+                state["question"], high_relevance_docs
             )
 
             # LLMでレポート生成
@@ -55,17 +55,15 @@ class AnswerNode:
                 llm_response.content, high_relevance_docs
             )
 
-            state.final_report = final_report
-            state.current_node = "answer"
-
             logger.info(f"AnswerNode: レポート生成完了 ({len(final_report)} 文字)")
 
-            return {"final_report": final_report, "current_node": state.current_node}
+            return {**state, "final_report": final_report, "current_node": "answer"}
 
         except Exception as e:
             logger.error(f"AnswerNode: レポート生成エラー - {str(e)}")
-            error_report = self._generate_error_report(state.question, str(e))
+            error_report = self._generate_error_report(state["question"], str(e))
             return {
+                **state,
                 "final_report": error_report,
                 "current_node": "error",
                 "error_message": str(e),
