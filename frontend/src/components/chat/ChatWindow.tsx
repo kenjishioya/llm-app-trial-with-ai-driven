@@ -3,9 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import MessageBubble from "./MessageBubble";
 import InputForm from "./InputForm";
+import ProgressBar from "./ProgressBar";
 import { LoadingMessage } from "./LoadingSpinner";
 import { useAskMutation, AskInput } from "@/generated/graphql";
 import { useChatStream } from "@/hooks/useChatStream";
+import { useDeepResearch } from "@/hooks/useDeepResearch";
 
 // メッセージ型定義（GraphQL型に合わせて拡張）
 interface Message {
@@ -41,6 +43,19 @@ export default function ChatWindow({
 
   // SSE ストリーミングフック
   const { streamState, startStream, stopStream, resetStream } = useChatStream();
+
+  // Deep Research フック
+  const {
+    startDeepResearch,
+    isLoading: isDeepResearching,
+    error: deepResearchError,
+    progress: deepResearchProgress,
+    currentProgress,
+    currentNode,
+    isComplete: isDeepResearchComplete,
+    finalReport,
+    reset: resetDeepResearch,
+  } = useDeepResearch();
 
   // GraphQL ask mutation フック
   const [askMutation, { loading: mutationLoading, error: mutationError }] =
@@ -172,6 +187,44 @@ export default function ChatWindow({
     }
   }, [streamState.error, resetStream]);
 
+  // Deep Research完了時の処理
+  useEffect(() => {
+    if (isDeepResearchComplete && finalReport) {
+      console.log("✅ Deep Research completed");
+
+      // レポートメッセージを追加
+      const reportMessage: Message = {
+        id: `deep-research-${Date.now()}`,
+        content: finalReport,
+        role: "assistant",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, reportMessage]);
+
+      // Deep Research状態をリセット
+      resetDeepResearch();
+    }
+  }, [isDeepResearchComplete, finalReport, resetDeepResearch]);
+
+  // Deep Researchエラー処理
+  useEffect(() => {
+    if (deepResearchError) {
+      console.error("❌ Deep Research error:", deepResearchError);
+
+      // エラーメッセージを追加
+      const errorMessage: Message = {
+        id: `deep-research-error-${Date.now()}`,
+        content: `Deep Research エラー: ${deepResearchError}`,
+        role: "assistant",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+
+      // エラー状態をリセット
+      resetDeepResearch();
+    }
+  }, [deepResearchError, resetDeepResearch]);
+
   // 自動スクロール機能
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
@@ -234,12 +287,52 @@ export default function ChatWindow({
     }
   };
 
+  // Deep Research実行処理
+  const handleDeepResearch = async (question: string) => {
+    if (!sessionId) {
+      console.error("❌ Session ID is required for Deep Research");
+      return;
+    }
+
+    const userMessage: Message = {
+      id: `user-deep-research-${Date.now()}`,
+      content: `🔍 Deep Research: ${question}`,
+      role: "user",
+      timestamp: new Date(),
+    };
+
+    // ユーザーメッセージを追加
+    setMessages((prev) => [...prev, userMessage]);
+
+    try {
+      // Deep Research開始
+      await startDeepResearch(question, sessionId);
+    } catch (error) {
+      console.error("Deep Research開始エラー:", error);
+
+      // エラーメッセージの追加
+      const errorMessage: Message = {
+        id: `deep-research-start-error-${Date.now()}`,
+        content:
+          error instanceof Error
+            ? `Deep Research開始エラー: ${error.message}`
+            : "Deep Researchの開始に失敗しました。もう一度お試しください。",
+        role: "assistant",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    }
+  };
+
   // メッセージリストの最適化（最大件数制限）
   const displayMessages = messages.slice(-maxMessages);
 
-  // ローディング状態を統合（GraphQL + ストリーミング + 従来のローディング）
+  // ローディング状態を統合（GraphQL + ストリーミング + Deep Research + 従来のローディング）
   const isActuallyLoading =
-    isLoading || mutationLoading || streamState.isStreaming;
+    isLoading ||
+    mutationLoading ||
+    streamState.isStreaming ||
+    isDeepResearching;
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
@@ -258,10 +351,15 @@ export default function ChatWindow({
       )}
 
       {/* Deep Research進捗表示 */}
-      {streamState.progress && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 text-sm">
-          <strong>研究進捗:</strong> {streamState.progress.description}(
-          {streamState.progress.step}/{streamState.progress.total})
+      {(isDeepResearching || isDeepResearchComplete) && (
+        <div className="p-4 border-b">
+          <ProgressBar
+            progress={currentProgress}
+            currentNode={currentNode}
+            messages={deepResearchProgress.map((p) => p.content)}
+            error={deepResearchError}
+            isComplete={isDeepResearchComplete}
+          />
         </div>
       )}
 
@@ -311,7 +409,9 @@ export default function ChatWindow({
       {/* 入力フォーム */}
       <InputForm
         onSubmit={handleSendMessage}
+        onDeepResearch={handleDeepResearch}
         isLoading={isActuallyLoading}
+        isDeepResearching={isDeepResearching}
         placeholder="質問を入力してください..."
         maxLength={1000}
       />

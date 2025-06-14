@@ -66,7 +66,7 @@ class KeyVaultService:
             # Key Vault操作は同期なので、別スレッドで実行
             secret = await asyncio.to_thread(self.client.get_secret, secret_name)
             logger.info(f"✅ シークレット取得成功: {secret_name}")
-            return secret.value
+            return str(secret.value) if secret.value is not None else None
 
         except ResourceNotFoundError:
             logger.warning(f"⚠️  シークレットが見つかりません: {secret_name}")

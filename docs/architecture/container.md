@@ -20,7 +20,7 @@ C4Container
     Container(frontend, "Next.js 14 UI", "React / TypeScript", "チャット UI・セッション一覧")
     Container(api, "FastAPI Gateway", "Python / ASGI", "GraphQL API、RAG・Deep Research 制御")
     Container(rag_service, "RagService", "Python Module", "検索 + GPT 回答生成 (引用付き)")
-    Container(agent_service, "DeepResearchAgent", "LangGraph DAG", "多段リサーチ (Planner→Search→Writer)")
+    Container(agent_service, "DeepResearchLangGraphAgent", "LangGraph StateGraph", "Agentic RAG (Retrieve→Decide→Answer)")
     ContainerDb(db, "Cosmos DB for PostgreSQL", "Managed DB", "セッション・メッセージ格納")
   }
 
@@ -52,7 +52,7 @@ C4Container
 | **Internal** | Next.js UI        | React 18, SWR   | チャット入力・ストリーミング・履歴閲覧   |
 |              | FastAPI Gateway   | FastAPI+GraphQL | 認証、RAG・DR モジュール呼び出し   |
 |              | RagService        | Python          | AI Search & GPT で回答生成 |
-|              | DeepResearchAgent | LangGraph       | Planner / Search ループ  |
+|              | DeepResearchLangGraphAgent | LangGraph StateGraph | Retrieve / Decide / Answer ノード  |
 |              | Cosmos DB (PG)    | PaaS            | 永続化                   |
 | **External** | Azure AI Search   | PaaS            | 文書検索 API              |
 |              | Azure OpenAI      | PaaS            | 生成・要約・埋め込み            |

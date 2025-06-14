@@ -9,7 +9,7 @@
 | 略語/用語                 | 説明                                                              |
 | --------------------- | --------------------------------------------------------------- |
 | **RAG**               | Retrieval‑Augmented Generation。検索結果を LLM プロンプトに組み込み回答精度を高めるパターン |
-| **Deep Research モード** | Planner→Search→Summarizer→Writer の多段階リサーチフロー                    |
+| **Deep Research モード** | Retrieve→Decide→Answer のLangGraph Agentic RAGフロー                    |
 | **セッション**             | 1 ユーザーとのチャット対話を表す単位。Deep Research 実行履歴も含む                       |
 | **無料枠 (Free Tier)**   | Azure 無料プランで課金が発生しない SKU / 使用量                                  |
 
@@ -23,7 +23,7 @@
 | **FR-02** | チャット & Q\&A (RAG) | バックエンドは Azure AI Search で上位 *k* 件 (既定 3) のドキュメントを取得し GPT‑4o へ渡す    | FastAPI ログに `search_top_k=3` が出力され、検索結果がプロンプトに含まれていることをユニットテストで検証  |
 | **FR-03** | チャット & Q\&A (RAG) | GPT‑4o から生成した回答を引用付きで返却する                                          | レスポンス JSON に `citations` フィールドが含まれ、UI が脚注リンクを表示                    |
 | **FR-04** | チャット & Q\&A (RAG) | 応答はストリーミングで逐次フロントへ送信される                                            | SSE / WebSocket でチャンクが送られ、入力後 1 秒以内に最初のトークンが到着                     |
-| **FR-05** | Deep Research モード | チャット UI で **「Deep Research」ボタン／アイコン** を押すと Deep Research モードが有効になる | ボタン押下後、UI が “Researching…” 状態に変わり、バックエンド側で Planner→Search ループが開始   |
+| **FR-05** | Deep Research モード | チャット UI で **「Deep Research」ボタン／アイコン** を押すと Deep Research モードが有効になる | ボタン押下後、UI が "Researching…" 状態に変わり、バックエンド側で Retrieve→Decide→Answer循環が開始   |
 | **FR-06** | Deep Research モード | Deep Research モードでは検索・要約を繰り返し、最終レポートを構造化 (章立て) で生成する               | レポートが Markdown もしくは HTML セクション構造で返却されることを E2E テストで確認               |
 | **FR-07** | Deep Research モード | フロントは Deep Research の進捗タイムライン (例: Step 1/3) を表示する                  | UI にステップ数と現在処理中サブタスクがリアルタイムに表示                                     |
 | **FR-08** | セッション管理           | すべてのメッセージ・引用・Deep Research ノートは DB に保存される                          | Cosmos DB の `sessions` / `messages` / `research_notes` テーブルにレコード挿入 |

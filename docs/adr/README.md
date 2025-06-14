@@ -13,7 +13,7 @@
 | 0003 | `use-graphql` – API を GraphQL に統一       | **Accepted** | 2025-06-03 | オーバーフェッチ回避と型安全     |
 | 0004 | `use-cosmos-postgresql` – Cosmos DB for PostgreSQL 採用 | **Accepted** | 2025-06-03 | 無料枠でリレーショナル機能が必要 |
 | 0005 | `streaming-approach` – ストリーミングに SSE 採用 | **Accepted** | 2025-06-03 | WebSocket より軽量で GraphQL 統合しやすい |
-| 0006 | `agent-architecture` – Deep Research Agent にループベース設計 | **Accepted** | 2025-06-03 | 複雑すぎず実装・デバッグが容易 |
+| 0006 | `agent-architecture` – Deep Research Agent にLangGraph Agentic RAG設計 | **Accepted** (Revised) | 2025-06-12 | 状態管理明確、コスト最適化に優れる |
 
 > **ステータス**: `Proposed` / `Accepted` / `Superseded` / `Deprecated` のいずれか。
 

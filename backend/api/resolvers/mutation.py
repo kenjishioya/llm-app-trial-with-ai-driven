@@ -10,6 +10,7 @@ from typing import Optional
 
 from api.types import SessionType, SessionInput, AskInput, AskPayload
 from api.types.document import UploadDocumentInput, UploadDocumentPayload
+from api.types.deep_research import DeepResearchInput, DeepResearchPayload
 from services import SessionService, RAGService
 from services.document_pipeline import DocumentPipeline
 from deps import get_db
@@ -157,4 +158,46 @@ class Mutation:
                 status="error",
                 message=f"アップロードエラー: {str(e)}",
                 chunks_created=0,
+            )
+
+    @strawberry.mutation
+    async def deep_research(self, input: DeepResearchInput) -> DeepResearchPayload:
+        """Deep Research実行"""
+        try:
+            # セッションIDをUUIDに変換
+            try:
+                uuid.UUID(input.session_id)  # バリデーションのみ
+            except ValueError:
+                return DeepResearchPayload(
+                    session_id=input.session_id,
+                    research_id="",
+                    stream_url="",
+                    status="error",
+                    message="Invalid session ID format",
+                )
+
+                # 研究IDを生成
+            research_id = str(uuid.uuid4())
+
+            # ストリーム用エンドポイントURL生成
+            stream_url = f"/graphql/stream/deep-research?id={research_id}"
+
+            # TODO: 非同期でDeep Researchを開始し、進捗をDBに保存
+            # 現在は同期的な応答のみ
+
+            return DeepResearchPayload(
+                session_id=input.session_id,
+                research_id=research_id,
+                stream_url=stream_url,
+                status="started",
+                message="Deep Research has been initiated",
+            )
+
+        except Exception as e:
+            return DeepResearchPayload(
+                session_id=input.session_id,
+                research_id="",
+                stream_url="",
+                status="error",
+                message=f"Deep Research error: {str(e)}",
             )
