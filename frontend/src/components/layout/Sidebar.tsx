@@ -1,8 +1,9 @@
 "use client";
 
-import { Plus, MessageSquare, X } from "lucide-react";
+import { MessageSquare, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SessionType } from "@/generated/graphql";
+import { useRouter } from "next/navigation";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -21,6 +22,12 @@ export default function Sidebar({
   sessions,
   onDeleteSession,
 }: SidebarProps) {
+  const router = useRouter();
+
+  const handleHomeNavigation = () => {
+    router.push("/");
+  };
+
   return (
     <div
       className={`
@@ -31,7 +38,10 @@ export default function Sidebar({
     >
       {/* ヘッダー */}
       <div className="flex items-center p-4 border-b border-gray-200">
-        <div className="flex items-center space-x-2">
+        <div
+          className="flex items-center space-x-2 cursor-pointer"
+          onClick={handleHomeNavigation}
+        >
           <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
             <span className="text-white text-xs font-bold">Q</span>
           </div>
@@ -39,20 +49,9 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* 新規チャットボタン */}
-      <div className="p-4">
-        <Button
-          onClick={onNewChat}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          新規チャット
-        </Button>
-      </div>
-
       {/* セッション履歴 */}
       <div className="flex-1 overflow-y-auto">
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 pt-4">
           <h3 className="text-sm font-medium text-gray-500 mb-2">
             チャット履歴
           </h3>
@@ -98,11 +97,6 @@ export default function Sidebar({
             )}
           </div>
         </div>
-      </div>
-
-      {/* フッター */}
-      <div className="p-4 border-t border-gray-200">
-        <div className="text-xs text-gray-500">今日</div>
       </div>
     </div>
   );

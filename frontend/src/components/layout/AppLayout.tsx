@@ -67,7 +67,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       {/* メインコンテンツエリア */}
       <div className="flex-1 bg-gray-50 overflow-hidden flex flex-col">
         {/* 常に表示されるヘッダーバー（ハンバーガーメニュー含む） */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center">
+        {/* <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center">
           {!isSidebarOpen && (
             <Button
               variant="ghost"
@@ -84,7 +84,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </div>
             <span className="text-gray-900 font-semibold">QRAI</span>
           </div>
-        </div>
+        </div> */}
 
         {/* メインコンテンツ */}
         <div className="flex-1 overflow-hidden">{children}</div>

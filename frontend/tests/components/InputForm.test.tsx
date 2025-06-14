@@ -58,7 +58,7 @@ describe("InputForm", () => {
       expect(input).toHaveValue(""); // 送信後にクリア
     });
 
-    it("Enterキーで送信する", async () => {
+    it("Enterキーでは送信されない", async () => {
       const user = userEvent.setup();
       render(<InputForm onSubmit={mockOnSubmit} />);
 
@@ -66,8 +66,9 @@ describe("InputForm", () => {
       await user.type(input, "Enterキーテスト");
       await user.keyboard("{Enter}");
 
-      expect(mockOnSubmit).toHaveBeenCalledWith("Enterキーテスト");
-      expect(input).toHaveValue("");
+      // Enterキーでは送信されない
+      expect(mockOnSubmit).not.toHaveBeenCalled();
+      expect(input).toHaveValue("Enterキーテスト\n"); // 改行が追加される
     });
 
     it("Shift+Enterで改行する（送信しない）", async () => {
@@ -206,9 +207,7 @@ describe("InputForm", () => {
     it("ヘルプテキストを表示する", () => {
       render(<InputForm onSubmit={mockOnSubmit} />);
 
-      expect(
-        screen.getByText("Enter で送信、Shift+Enter で改行"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("クリックで送信")).toBeInTheDocument();
     });
   });
 
