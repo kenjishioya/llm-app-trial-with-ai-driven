@@ -8,6 +8,9 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
+    env: {
+      NODE_ENV: "test",
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
@@ -27,6 +30,10 @@ export default defineConfig({
         },
       },
     },
+  },
+  define: {
+    "process.env.NODE_ENV": '"test"',
+    __DEV__: true,
   },
   resolve: {
     alias: {
