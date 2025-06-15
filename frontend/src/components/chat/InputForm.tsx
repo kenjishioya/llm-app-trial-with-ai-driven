@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, FormEvent, KeyboardEvent } from "react";
+import { useState, useRef, FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Search } from "lucide-react";
@@ -30,6 +30,7 @@ export default function InputForm({
 }: InputFormProps) {
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
+  const [isDeepResearchMode, setIsDeepResearchMode] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // フォーム送信処理
@@ -56,8 +57,13 @@ export default function InputForm({
     // エラークリア
     setError("");
 
-    // 送信処理
-    onSubmit(trimmedInput);
+    // Deep Research モードかどうかで送信先を分ける
+    if (isDeepResearchMode && onDeepResearch) {
+      onDeepResearch(trimmedInput);
+    } else {
+      onSubmit(trimmedInput);
+    }
+
     setInput("");
 
     // フォーカスを戻す
@@ -66,45 +72,9 @@ export default function InputForm({
     }
   };
 
-  // Deep Research実行
-  const handleDeepResearch = () => {
-    const trimmedInput = input.trim();
-
-    // バリデーション
-    if (!trimmedInput) {
-      setError("質問を入力してください");
-      return;
-    }
-
-    if (trimmedInput.length > maxLength) {
-      setError(`質問は${maxLength}文字以内で入力してください`);
-      return;
-    }
-
-    // エラークリア
-    setError("");
-
-    // Deep Research実行
-    if (onDeepResearch) {
-      onDeepResearch(trimmedInput);
-      setInput("");
-
-      // フォーカスを戻す
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-      }
-    }
-  };
-
-  // キーボードショートカット処理
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Enter キーで送信（Shift+Enter は改行）
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      if (!isLoading) {
-        submitMessage();
-      }
-    }
+  // Deep Research トグル
+  const toggleDeepResearch = () => {
+    setIsDeepResearchMode(!isDeepResearchMode);
   };
 
   // 入力変更処理
@@ -131,23 +101,26 @@ export default function InputForm({
             ref={textareaRef}
             value={input}
             onChange={(e) => handleInputChange(e.target.value)}
-            onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={isLoading || isDeepResearching}
             className="flex-1 min-h-[60px] max-h-[120px] resize-none"
             data-testid="message-input"
           />
 
-          {/* Deep Research アイコンボタン */}
+          {/* Deep Research トグルボタン */}
           {onDeepResearch && (
             <Button
               type="button"
-              onClick={handleDeepResearch}
-              disabled={isLoading || isDeepResearching || !input.trim()}
+              onClick={toggleDeepResearch}
+              disabled={isLoading || isDeepResearching}
               variant="outline"
-              className="self-end px-3"
-              title="Deep Research - 詳細な調査レポートを生成"
-              data-testid="deep-research-button"
+              className={`self-end px-3 ${
+                isDeepResearchMode
+                  ? "bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
+                  : "text-gray-400 hover:text-gray-600"
+              }`}
+              title={`Deep Research ${isDeepResearchMode ? "ON" : "OFF"} - 詳細な調査レポートを生成`}
+              data-testid="deep-research-toggle"
             >
               <Search className="h-4 w-4" />
             </Button>
@@ -171,7 +144,9 @@ export default function InputForm({
               ? "送信中..."
               : isDeepResearching
                 ? "Deep Research実行中..."
-                : "Enter で送信、Shift+Enter で改行"}
+                : isDeepResearchMode
+                  ? "Deep Research モード - クリックで送信"
+                  : "クリックで送信"}
           </span>
           <span>
             {input.length}/{maxLength}

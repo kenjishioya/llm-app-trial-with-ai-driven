@@ -10,16 +10,23 @@ interface SessionContextType {
   isCreating: boolean;
   createSession: (title?: string) => Promise<SessionType | undefined>;
   onDeleteSession: (sessionId: string) => void;
+  selectSession: (sessionId: string) => void;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const { sessions, currentSession, createSession, deleteSession, isCreating } =
-    useChatSession({
-      autoFetch: true,
-      includeMessages: false,
-    });
+  const {
+    sessions,
+    currentSession,
+    createSession,
+    deleteSession,
+    selectSession,
+    isCreating,
+  } = useChatSession({
+    autoFetch: true,
+    includeMessages: true,
+  });
 
   const handleDeleteSession = async (sessionId: string) => {
     await deleteSession(sessionId);
@@ -37,6 +44,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         isCreating,
         createSession: handleCreateSession,
         onDeleteSession: handleDeleteSession,
+        selectSession,
       }}
     >
       {children}

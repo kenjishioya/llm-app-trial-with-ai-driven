@@ -24,8 +24,6 @@ interface ChatWindowProps {
   sessionId?: string;
   /** 初期メッセージ（オプション） */
   initialMessages?: Message[];
-  /** メッセージ送信時のコールバック */
-  onMessageSend?: (message: string, sessionId?: string) => void;
   /** 最大表示メッセージ数 */
   maxMessages?: number;
 }
@@ -33,7 +31,6 @@ interface ChatWindowProps {
 export default function ChatWindow({
   sessionId,
   initialMessages = [],
-  onMessageSend,
   maxMessages = 100,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);

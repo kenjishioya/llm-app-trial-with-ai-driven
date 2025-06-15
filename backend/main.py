@@ -153,17 +153,16 @@ async def graphql_stream(
                     {"type": "message", "messageId": id, "status": "processing"}
                 ) + "\n\n"
 
-                # RAGServiceでストリーミング開始
                 # セッションIDをUUIDに変換
                 import uuid
 
                 session_uuid = uuid.UUID(message.session_id)
 
-                # ストリーミング処理
-                async for chunk in rag_service.stream_answer(
+                # ストリーミング処理（メッセージ作成なし）
+                async for chunk in rag_service.stream_response_only(
                     question=message.content,
                     session_id=session_uuid,
-                    deep_research=False,
+                    user_message_id=message.id,
                 ):
                     if "error" in chunk:
                         yield "data: " + json.dumps(

@@ -8,7 +8,6 @@ import {
   useDeepResearchMutation,
   useStreamDeepResearchSubscription,
   DeepResearchInput,
-  DeepResearchProgress as GraphQLDeepResearchProgress,
 } from "@/generated/graphql";
 
 // 型定義
