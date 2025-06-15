@@ -1,32 +1,64 @@
 "use client";
 
-import { MessageSquare, X } from "lucide-react";
+import { MessageSquare, X, Edit2, Check, X as XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SessionType } from "@/generated/graphql";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 interface SidebarProps {
   isOpen: boolean;
   currentSessionId?: string;
   onSessionSelect: (sessionId: string) => void;
-  onNewChat: () => void;
   sessions: SessionType[];
   onDeleteSession: (sessionId: string) => void;
+  onUpdateSessionTitle?: (sessionId: string, newTitle: string) => void;
 }
 
 export default function Sidebar({
   isOpen,
   currentSessionId,
   onSessionSelect,
-  onNewChat,
   sessions,
   onDeleteSession,
+  onUpdateSessionTitle,
 }: SidebarProps) {
   const router = useRouter();
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
 
   const handleHomeNavigation = () => {
     router.push("/");
   };
+
+  const handleStartEdit = (session: SessionType, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingSessionId(session.id);
+    setEditingTitle(session.title);
+  };
+
+  const handleSaveEdit = async () => {
+    if (editingSessionId && editingTitle.trim() && onUpdateSessionTitle) {
+      await onUpdateSessionTitle(editingSessionId, editingTitle.trim());
+    }
+    setEditingSessionId(null);
+    setEditingTitle("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSessionId(null);
+    setEditingTitle("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSaveEdit();
+    } else if (e.key === "Escape") {
+      handleCancelEdit();
+    }
+  };
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -73,25 +105,77 @@ export default function Sidebar({
                         : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     }
                   `}
-                  onClick={() => onSessionSelect(session.id)}
+                  onClick={() =>
+                    editingSessionId !== session.id &&
+                    onSessionSelect(session.id)
+                  }
                 >
                   <div className="flex items-center space-x-2 min-w-0 flex-1">
                     <MessageSquare className="h-4 w-4 flex-shrink-0" />
-                    <span className="text-sm truncate">
-                      {session.title || `セッション ${session.id.slice(0, 8)}`}
-                    </span>
+                    {editingSessionId === session.id ? (
+                      <div className="flex items-center space-x-1 flex-1">
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="text-sm bg-white border border-gray-300 rounded px-2 py-1 flex-1 min-w-0"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleSaveEdit}
+                          className="p-1 h-6 w-6 text-green-600 hover:text-green-700"
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleCancelEdit}
+                          className="p-1 h-6 w-6 text-gray-400 hover:text-gray-600"
+                        >
+                          <XIcon className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <span
+                        className="text-sm truncate flex-1"
+                        onDoubleClick={(e) => handleStartEdit(session, e)}
+                        title="ダブルクリックで編集"
+                      >
+                        {session.title ||
+                          `セッション ${session.id.slice(0, 8)}`}
+                      </span>
+                    )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteSession(session.id);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 p-1"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
+                  {editingSessionId !== session.id && (
+                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleStartEdit(session, e)}
+                        className="p-1 h-6 w-6 text-gray-400 hover:text-blue-500"
+                        title="タイトルを編集"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteSession(session.id);
+                        }}
+                        className="p-1 h-6 w-6 text-gray-400 hover:text-red-500"
+                        title="削除"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))
             )}

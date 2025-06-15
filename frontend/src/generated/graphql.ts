@@ -126,8 +126,10 @@ export type Mutation = {
   ask: AskPayload;
   createSession: SessionType;
   deepResearch: DeepResearchPayload;
+  deleteMultipleSessions: Scalars["Int"]["output"];
   deleteSession: Scalars["Boolean"]["output"];
   updateSession?: Maybe<SessionType>;
+  updateSessionTitle?: Maybe<SessionType>;
   uploadDocument: UploadDocumentPayload;
 };
 
@@ -143,6 +145,10 @@ export type MutationDeepResearchArgs = {
   input: DeepResearchInput;
 };
 
+export type MutationDeleteMultipleSessionsArgs = {
+  ids: Array<Scalars["String"]["input"]>;
+};
+
 export type MutationDeleteSessionArgs = {
   id: Scalars["String"]["input"];
 };
@@ -150,6 +156,11 @@ export type MutationDeleteSessionArgs = {
 export type MutationUpdateSessionArgs = {
   id: Scalars["String"]["input"];
   input: SessionInput;
+};
+
+export type MutationUpdateSessionTitleArgs = {
+  id: Scalars["String"]["input"];
+  input: UpdateSessionTitleInput;
 };
 
 export type MutationUploadDocumentArgs = {
@@ -160,12 +171,19 @@ export type Query = {
   __typename?: "Query";
   health: HealthType;
   searchDocuments: SearchResultType;
+  searchSessions: Array<SessionType>;
   session?: Maybe<SessionType>;
   sessions: Array<SessionType>;
+  sessionsFiltered: SessionListResult;
 };
 
 export type QuerySearchDocumentsArgs = {
   input: SearchInput;
+};
+
+export type QuerySearchSessionsArgs = {
+  limit?: Scalars["Int"]["input"];
+  query: Scalars["String"]["input"];
 };
 
 export type QuerySessionArgs = {
@@ -174,6 +192,10 @@ export type QuerySessionArgs = {
 
 export type QuerySessionsArgs = {
   includeMessages?: Scalars["Boolean"]["input"];
+};
+
+export type QuerySessionsFilteredArgs = {
+  input: SessionListInput;
 };
 
 export type SearchInput = {
@@ -190,8 +212,41 @@ export type SearchResultType = {
   totalCount: Scalars["Int"]["output"];
 };
 
+export type SessionFilterInput = {
+  createdAfter?: InputMaybe<Scalars["String"]["input"]>;
+  createdBefore?: InputMaybe<Scalars["String"]["input"]>;
+  hasMessages?: InputMaybe<Scalars["Boolean"]["input"]>;
+  searchQuery?: InputMaybe<Scalars["String"]["input"]>;
+};
+
 export type SessionInput = {
   title?: Scalars["String"]["input"];
+};
+
+export type SessionListInput = {
+  filter?: InputMaybe<SessionFilterInput>;
+  includeMessages?: Scalars["Boolean"]["input"];
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  offset?: InputMaybe<Scalars["Int"]["input"]>;
+  sort?: InputMaybe<SessionSortInput>;
+};
+
+export type SessionListResult = {
+  __typename?: "SessionListResult";
+  hasMore: Scalars["Boolean"]["output"];
+  sessions: Array<SessionType>;
+  totalCount: Scalars["Int"]["output"];
+};
+
+export enum SessionSortField {
+  CreatedAt = "CREATED_AT",
+  Title = "TITLE",
+  UpdatedAt = "UPDATED_AT",
+}
+
+export type SessionSortInput = {
+  field?: SessionSortField;
+  order?: SortOrder;
 };
 
 export type SessionType = {
@@ -202,6 +257,11 @@ export type SessionType = {
   title: Scalars["String"]["output"];
   updatedAt?: Maybe<Scalars["String"]["output"]>;
 };
+
+export enum SortOrder {
+  Asc = "ASC",
+  Desc = "DESC",
+}
 
 export type StreamChunk = {
   __typename?: "StreamChunk";
@@ -227,6 +287,10 @@ export type SubscriptionStreamDeepResearchArgs = {
   question: Scalars["String"]["input"];
   researchId: Scalars["String"]["input"];
   sessionId: Scalars["String"]["input"];
+};
+
+export type UpdateSessionTitleInput = {
+  title: Scalars["String"]["input"];
 };
 
 export type UploadDocumentInput = {
@@ -317,6 +381,48 @@ export type GetSessionsQuery = {
   }>;
 };
 
+export type GetSessionsFilteredQueryVariables = Exact<{
+  input: SessionListInput;
+}>;
+
+export type GetSessionsFilteredQuery = {
+  __typename?: "Query";
+  sessionsFiltered: {
+    __typename?: "SessionListResult";
+    totalCount: number;
+    hasMore: boolean;
+    sessions: Array<{
+      __typename?: "SessionType";
+      id: string;
+      title: string;
+      createdAt: string;
+      updatedAt?: string | null;
+      messages: Array<{
+        __typename?: "MessageType";
+        id: string;
+        content: string;
+        createdAt: string;
+      }>;
+    }>;
+  };
+};
+
+export type SearchSessionsQueryVariables = Exact<{
+  query: Scalars["String"]["input"];
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+}>;
+
+export type SearchSessionsQuery = {
+  __typename?: "Query";
+  searchSessions: Array<{
+    __typename?: "SessionType";
+    id: string;
+    title: string;
+    createdAt: string;
+    updatedAt?: string | null;
+  }>;
+};
+
 export type HealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type HealthQuery = {
@@ -339,6 +445,21 @@ export type UpdateSessionMutation = {
   } | null;
 };
 
+export type UpdateSessionTitleMutationVariables = Exact<{
+  id: Scalars["String"]["input"];
+  input: UpdateSessionTitleInput;
+}>;
+
+export type UpdateSessionTitleMutation = {
+  __typename?: "Mutation";
+  updateSessionTitle?: {
+    __typename?: "SessionType";
+    id: string;
+    title: string;
+    updatedAt?: string | null;
+  } | null;
+};
+
 export type DeleteSessionMutationVariables = Exact<{
   id: Scalars["String"]["input"];
 }>;
@@ -346,6 +467,15 @@ export type DeleteSessionMutationVariables = Exact<{
 export type DeleteSessionMutation = {
   __typename?: "Mutation";
   deleteSession: boolean;
+};
+
+export type DeleteMultipleSessionsMutationVariables = Exact<{
+  ids: Array<Scalars["String"]["input"]> | Scalars["String"]["input"];
+}>;
+
+export type DeleteMultipleSessionsMutation = {
+  __typename?: "Mutation";
+  deleteMultipleSessions: number;
 };
 
 export type DeepResearchMutationVariables = Exact<{
@@ -657,6 +787,186 @@ export type GetSessionsQueryResult = Apollo.QueryResult<
   GetSessionsQuery,
   GetSessionsQueryVariables
 >;
+export const GetSessionsFilteredDocument = gql`
+  query GetSessionsFiltered($input: SessionListInput!) {
+    sessionsFiltered(input: $input) {
+      sessions {
+        id
+        title
+        createdAt
+        updatedAt
+        messages {
+          id
+          content
+          createdAt
+        }
+      }
+      totalCount
+      hasMore
+    }
+  }
+`;
+
+/**
+ * __useGetSessionsFilteredQuery__
+ *
+ * To run a query within a React component, call `useGetSessionsFilteredQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetSessionsFilteredQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetSessionsFilteredQuery({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useGetSessionsFilteredQuery(
+  baseOptions: ApolloReactHooks.QueryHookOptions<
+    GetSessionsFilteredQuery,
+    GetSessionsFilteredQueryVariables
+  > &
+    (
+      | { variables: GetSessionsFilteredQueryVariables; skip?: boolean }
+      | { skip: boolean }
+    ),
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return ApolloReactHooks.useQuery<
+    GetSessionsFilteredQuery,
+    GetSessionsFilteredQueryVariables
+  >(GetSessionsFilteredDocument, options);
+}
+export function useGetSessionsFilteredLazyQuery(
+  baseOptions?: ApolloReactHooks.LazyQueryHookOptions<
+    GetSessionsFilteredQuery,
+    GetSessionsFilteredQueryVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return ApolloReactHooks.useLazyQuery<
+    GetSessionsFilteredQuery,
+    GetSessionsFilteredQueryVariables
+  >(GetSessionsFilteredDocument, options);
+}
+export function useGetSessionsFilteredSuspenseQuery(
+  baseOptions?:
+    | ApolloReactHooks.SkipToken
+    | ApolloReactHooks.SuspenseQueryHookOptions<
+        GetSessionsFilteredQuery,
+        GetSessionsFilteredQueryVariables
+      >,
+) {
+  const options =
+    baseOptions === ApolloReactHooks.skipToken
+      ? baseOptions
+      : { ...defaultOptions, ...baseOptions };
+  return ApolloReactHooks.useSuspenseQuery<
+    GetSessionsFilteredQuery,
+    GetSessionsFilteredQueryVariables
+  >(GetSessionsFilteredDocument, options);
+}
+export type GetSessionsFilteredQueryHookResult = ReturnType<
+  typeof useGetSessionsFilteredQuery
+>;
+export type GetSessionsFilteredLazyQueryHookResult = ReturnType<
+  typeof useGetSessionsFilteredLazyQuery
+>;
+export type GetSessionsFilteredSuspenseQueryHookResult = ReturnType<
+  typeof useGetSessionsFilteredSuspenseQuery
+>;
+export type GetSessionsFilteredQueryResult = Apollo.QueryResult<
+  GetSessionsFilteredQuery,
+  GetSessionsFilteredQueryVariables
+>;
+export const SearchSessionsDocument = gql`
+  query SearchSessions($query: String!, $limit: Int = 20) {
+    searchSessions(query: $query, limit: $limit) {
+      id
+      title
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+/**
+ * __useSearchSessionsQuery__
+ *
+ * To run a query within a React component, call `useSearchSessionsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useSearchSessionsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useSearchSessionsQuery({
+ *   variables: {
+ *      query: // value for 'query'
+ *      limit: // value for 'limit'
+ *   },
+ * });
+ */
+export function useSearchSessionsQuery(
+  baseOptions: ApolloReactHooks.QueryHookOptions<
+    SearchSessionsQuery,
+    SearchSessionsQueryVariables
+  > &
+    (
+      | { variables: SearchSessionsQueryVariables; skip?: boolean }
+      | { skip: boolean }
+    ),
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return ApolloReactHooks.useQuery<
+    SearchSessionsQuery,
+    SearchSessionsQueryVariables
+  >(SearchSessionsDocument, options);
+}
+export function useSearchSessionsLazyQuery(
+  baseOptions?: ApolloReactHooks.LazyQueryHookOptions<
+    SearchSessionsQuery,
+    SearchSessionsQueryVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return ApolloReactHooks.useLazyQuery<
+    SearchSessionsQuery,
+    SearchSessionsQueryVariables
+  >(SearchSessionsDocument, options);
+}
+export function useSearchSessionsSuspenseQuery(
+  baseOptions?:
+    | ApolloReactHooks.SkipToken
+    | ApolloReactHooks.SuspenseQueryHookOptions<
+        SearchSessionsQuery,
+        SearchSessionsQueryVariables
+      >,
+) {
+  const options =
+    baseOptions === ApolloReactHooks.skipToken
+      ? baseOptions
+      : { ...defaultOptions, ...baseOptions };
+  return ApolloReactHooks.useSuspenseQuery<
+    SearchSessionsQuery,
+    SearchSessionsQueryVariables
+  >(SearchSessionsDocument, options);
+}
+export type SearchSessionsQueryHookResult = ReturnType<
+  typeof useSearchSessionsQuery
+>;
+export type SearchSessionsLazyQueryHookResult = ReturnType<
+  typeof useSearchSessionsLazyQuery
+>;
+export type SearchSessionsSuspenseQueryHookResult = ReturnType<
+  typeof useSearchSessionsSuspenseQuery
+>;
+export type SearchSessionsQueryResult = Apollo.QueryResult<
+  SearchSessionsQuery,
+  SearchSessionsQueryVariables
+>;
 export const HealthDocument = gql`
   query Health {
     health {
@@ -784,6 +1094,59 @@ export type UpdateSessionMutationOptions = Apollo.BaseMutationOptions<
   UpdateSessionMutation,
   UpdateSessionMutationVariables
 >;
+export const UpdateSessionTitleDocument = gql`
+  mutation UpdateSessionTitle($id: String!, $input: UpdateSessionTitleInput!) {
+    updateSessionTitle(id: $id, input: $input) {
+      id
+      title
+      updatedAt
+    }
+  }
+`;
+export type UpdateSessionTitleMutationFn = Apollo.MutationFunction<
+  UpdateSessionTitleMutation,
+  UpdateSessionTitleMutationVariables
+>;
+
+/**
+ * __useUpdateSessionTitleMutation__
+ *
+ * To run a mutation, you first call `useUpdateSessionTitleMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useUpdateSessionTitleMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [updateSessionTitleMutation, { data, loading, error }] = useUpdateSessionTitleMutation({
+ *   variables: {
+ *      id: // value for 'id'
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useUpdateSessionTitleMutation(
+  baseOptions?: ApolloReactHooks.MutationHookOptions<
+    UpdateSessionTitleMutation,
+    UpdateSessionTitleMutationVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return ApolloReactHooks.useMutation<
+    UpdateSessionTitleMutation,
+    UpdateSessionTitleMutationVariables
+  >(UpdateSessionTitleDocument, options);
+}
+export type UpdateSessionTitleMutationHookResult = ReturnType<
+  typeof useUpdateSessionTitleMutation
+>;
+export type UpdateSessionTitleMutationResult =
+  Apollo.MutationResult<UpdateSessionTitleMutation>;
+export type UpdateSessionTitleMutationOptions = Apollo.BaseMutationOptions<
+  UpdateSessionTitleMutation,
+  UpdateSessionTitleMutationVariables
+>;
 export const DeleteSessionDocument = gql`
   mutation DeleteSession($id: String!) {
     deleteSession(id: $id)
@@ -831,6 +1194,54 @@ export type DeleteSessionMutationResult =
 export type DeleteSessionMutationOptions = Apollo.BaseMutationOptions<
   DeleteSessionMutation,
   DeleteSessionMutationVariables
+>;
+export const DeleteMultipleSessionsDocument = gql`
+  mutation DeleteMultipleSessions($ids: [String!]!) {
+    deleteMultipleSessions(ids: $ids)
+  }
+`;
+export type DeleteMultipleSessionsMutationFn = Apollo.MutationFunction<
+  DeleteMultipleSessionsMutation,
+  DeleteMultipleSessionsMutationVariables
+>;
+
+/**
+ * __useDeleteMultipleSessionsMutation__
+ *
+ * To run a mutation, you first call `useDeleteMultipleSessionsMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useDeleteMultipleSessionsMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [deleteMultipleSessionsMutation, { data, loading, error }] = useDeleteMultipleSessionsMutation({
+ *   variables: {
+ *      ids: // value for 'ids'
+ *   },
+ * });
+ */
+export function useDeleteMultipleSessionsMutation(
+  baseOptions?: ApolloReactHooks.MutationHookOptions<
+    DeleteMultipleSessionsMutation,
+    DeleteMultipleSessionsMutationVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return ApolloReactHooks.useMutation<
+    DeleteMultipleSessionsMutation,
+    DeleteMultipleSessionsMutationVariables
+  >(DeleteMultipleSessionsDocument, options);
+}
+export type DeleteMultipleSessionsMutationHookResult = ReturnType<
+  typeof useDeleteMultipleSessionsMutation
+>;
+export type DeleteMultipleSessionsMutationResult =
+  Apollo.MutationResult<DeleteMultipleSessionsMutation>;
+export type DeleteMultipleSessionsMutationOptions = Apollo.BaseMutationOptions<
+  DeleteMultipleSessionsMutation,
+  DeleteMultipleSessionsMutationVariables
 >;
 export const DeepResearchDocument = gql`
   mutation DeepResearch($input: DeepResearchInput!) {

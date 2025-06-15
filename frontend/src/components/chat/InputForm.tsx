@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, FormEvent, KeyboardEvent } from "react";
+import { useState, useRef, FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Search } from "lucide-react";

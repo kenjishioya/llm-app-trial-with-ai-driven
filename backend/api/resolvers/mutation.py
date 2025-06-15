@@ -6,13 +6,15 @@ import strawberry
 import uuid
 import json
 import base64
-from typing import Optional
+from typing import Optional, List
 
 from api.types import SessionType, SessionInput, AskInput, AskPayload
+from api.types.session import UpdateSessionTitleInput
 from api.types.document import UploadDocumentInput, UploadDocumentPayload
 from api.types.deep_research import DeepResearchInput, DeepResearchPayload
 from services import SessionService, RAGService
 from services.document_pipeline import DocumentPipeline
+from models.message import Message, MessageRole
 from deps import get_db
 
 
@@ -43,10 +45,33 @@ class Mutation:
     async def update_session(
         self, id: str, input: SessionInput
     ) -> Optional[SessionType]:
-        """セッション更新"""
+        """セッション更新（従来版・後方互換性維持）"""
         async for db in get_db():
             session_service = SessionService(db)
             session = await session_service.update_session(id, input.title)
+
+            if not session:
+                return None
+
+            return SessionType(
+                id=session.id,
+                title=session.title,
+                created_at=session.created_at.isoformat(),
+                updated_at=(
+                    session.updated_at.isoformat() if session.updated_at else None
+                ),
+                messages=[],
+            )
+        return None  # Fallback for mypy
+
+    @strawberry.mutation
+    async def update_session_title(
+        self, id: str, input: UpdateSessionTitleInput
+    ) -> Optional[SessionType]:
+        """セッションタイトル更新"""
+        async for db in get_db():
+            session_service = SessionService(db)
+            session = await session_service.update_session_title(id, input.title)
 
             if not session:
                 return None
@@ -69,6 +94,14 @@ class Mutation:
             session_service = SessionService(db)
             return await session_service.delete_session(id)
         return False  # Fallback for mypy
+
+    @strawberry.mutation
+    async def delete_multiple_sessions(self, ids: List[str]) -> int:
+        """複数セッション一括削除"""
+        async for db in get_db():
+            session_service = SessionService(db)
+            return await session_service.delete_multiple_sessions(ids)
+        return 0  # Fallback for mypy
 
     @strawberry.mutation
     async def ask(self, input: AskInput) -> AskPayload:
@@ -166,7 +199,7 @@ class Mutation:
         try:
             # セッションIDをUUIDに変換
             try:
-                uuid.UUID(input.session_id)  # バリデーションのみ
+                session_uuid = uuid.UUID(input.session_id)
             except ValueError:
                 return DeepResearchPayload(
                     session_id=input.session_id,
@@ -176,14 +209,29 @@ class Mutation:
                     message="Invalid session ID format",
                 )
 
-                # 研究IDを生成
+            # 研究IDを生成
             research_id = str(uuid.uuid4())
+
+            # データベース接続取得
+            async for db in get_db():
+                # ユーザーメッセージを作成・保存
+                user_message = Message(
+                    session_id=str(session_uuid),
+                    role=MessageRole.USER,
+                    content=f"🔍 Deep Research: {input.question}",
+                    citations=None,
+                    meta_data=json.dumps(
+                        {"research_id": research_id, "type": "deep_research_question"}
+                    ),
+                )
+                db.add(user_message)
+                await db.commit()
+                await db.refresh(user_message)
+
+                break
 
             # ストリーム用エンドポイントURL生成
             stream_url = f"/graphql/stream/deep-research?id={research_id}"
-
-            # TODO: 非同期でDeep Researchを開始し、進捗をDBに保存
-            # 現在は同期的な応答のみ
 
             return DeepResearchPayload(
                 session_id=input.session_id,

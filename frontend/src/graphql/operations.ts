@@ -66,6 +66,43 @@ export const GET_SESSIONS = gql`
 `;
 
 /**
+ * フィルタリング・ソート機能付きセッション一覧クエリ
+ */
+export const GET_SESSIONS_FILTERED = gql`
+  query GetSessionsFiltered($input: SessionListInput!) {
+    sessionsFiltered(input: $input) {
+      sessions {
+        id
+        title
+        createdAt
+        updatedAt
+        messages {
+          id
+          content
+          createdAt
+        }
+      }
+      totalCount
+      hasMore
+    }
+  }
+`;
+
+/**
+ * セッション検索クエリ
+ */
+export const SEARCH_SESSIONS = gql`
+  query SearchSessions($query: String!, $limit: Int = 20) {
+    searchSessions(query: $query, limit: $limit) {
+      id
+      title
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+/**
  * ヘルスチェッククエリ
  */
 export const HEALTH_QUERY = gql`
@@ -91,11 +128,33 @@ export const UPDATE_SESSION = gql`
 `;
 
 /**
+ * セッションタイトル更新ミューテーション
+ */
+export const UPDATE_SESSION_TITLE = gql`
+  mutation UpdateSessionTitle($id: String!, $input: UpdateSessionTitleInput!) {
+    updateSessionTitle(id: $id, input: $input) {
+      id
+      title
+      updatedAt
+    }
+  }
+`;
+
+/**
  * セッション削除ミューテーション
  */
 export const DELETE_SESSION = gql`
   mutation DeleteSession($id: String!) {
     deleteSession(id: $id)
+  }
+`;
+
+/**
+ * 複数セッション一括削除ミューテーション
+ */
+export const DELETE_MULTIPLE_SESSIONS = gql`
+  mutation DeleteMultipleSessions($ids: [String!]!) {
+    deleteMultipleSessions(ids: $ids)
   }
 `;
 

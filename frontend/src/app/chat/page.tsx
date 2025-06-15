@@ -4,9 +4,18 @@ import ChatWindow from "@/components/chat/ChatWindow";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Button } from "@/components/ui/button";
 import { PlusIcon } from "lucide-react";
+import { useGetSessionQuery } from "@/generated/graphql";
 
 export default function ChatPage() {
   const { currentSession, createSession, isCreating } = useSession();
+
+  // 現在のセッションの詳細を取得（メッセージ全件）
+  const { data: sessionDetailData, loading: sessionDetailLoading } =
+    useGetSessionQuery({
+      variables: { id: currentSession?.id || "" },
+      skip: !currentSession?.id,
+      fetchPolicy: "cache-and-network",
+    });
 
   const handleNewSession = async () => {
     await createSession(`新しいチャット ${new Date().toLocaleTimeString()}`);
@@ -40,6 +49,22 @@ export default function ChatPage() {
       </div>
     );
   }
+
+  // セッション詳細を取得中の場合
+  if (sessionDetailLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">セッションを読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // セッション詳細データを使用（全メッセージを含む）
+  const sessionDetail = sessionDetailData?.session;
+  const messages = sessionDetail?.messages || [];
 
   // セッションがある場合の通常の画面
   return (
@@ -75,12 +100,13 @@ export default function ChatPage() {
       <div className="flex-1 overflow-hidden">
         <ChatWindow
           sessionId={currentSession.id}
-          initialMessages={currentSession.messages.map((msg) => ({
+          initialMessages={messages.map((msg) => ({
             id: msg.id,
             content: msg.content,
             role: msg.role.toLowerCase() as "user" | "assistant",
             timestamp: new Date(msg.createdAt),
-            citations: msg.citations ? JSON.parse(msg.citations) : undefined,
+            citations:
+              msg.citations?.map((citation) => citation.url) || undefined,
           }))}
         />
       </div>

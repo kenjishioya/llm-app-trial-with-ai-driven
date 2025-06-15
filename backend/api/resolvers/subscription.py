@@ -6,9 +6,11 @@ import strawberry
 import uuid
 from typing import AsyncGenerator, Optional
 from dataclasses import dataclass
+import json
 
 from services import RAGService
 from services.deep_research import DeepResearchLangGraphAgent
+from models.message import Message, MessageRole
 from deps import get_db
 
 
@@ -92,20 +94,43 @@ class Subscription:
                 )
 
     @strawberry.subscription
-    async def stream_deep_research(
+    async def streamDeepResearch(
         self,
         research_id: str,
         session_id: str,
         question: str,
     ) -> AsyncGenerator[DeepResearchProgress, None]:
         """Deep Research進捗ストリーミング"""
+        # ログ追加: パラメータ受信確認
+        print("🔍 Deep Research Subscription called with:")
+        print(f"  research_id: '{research_id}'")
+        print(f"  session_id: '{session_id}'")
+        print(f"  question: '{question}'")
+
         try:
+            # 空文字列チェック
+            if not research_id or not session_id or not question:
+                error_msg = f"Missing required parameters: research_id='{research_id}', session_id='{session_id}', question='{question}'"
+                print(f"❌ {error_msg}")
+                yield DeepResearchProgress(
+                    content=f"Error: {error_msg}",
+                    research_id=research_id or "unknown",
+                    session_id=session_id or "unknown",
+                    is_complete=True,
+                    current_node="error",
+                    progress_percentage=0,
+                )
+                return
+
             # セッションIDをUUIDに変換
             try:
-                uuid.UUID(session_id)  # バリデーションのみ
+                session_uuid = uuid.UUID(session_id)
+                print("✅ Session ID validation passed")
             except ValueError:
+                error_msg = f"Invalid session ID format: {session_id}"
+                print(f"❌ {error_msg}")
                 yield DeepResearchProgress(
-                    content="Invalid session ID format",
+                    content=error_msg,
                     research_id=research_id,
                     session_id=session_id,
                     is_complete=True,
@@ -114,11 +139,14 @@ class Subscription:
                 )
                 return
 
+            print("🚀 Starting Deep Research agent...")
+
             # Deep Research エージェントを初期化
             agent = DeepResearchLangGraphAgent()
 
             progress_count = 0
             total_steps = 10  # 概算のステップ数
+            final_report = None
 
             # Deep Research実行
             async for progress_message in agent.run(question, session_id):
@@ -135,56 +163,78 @@ class Subscription:
                     current_node = "decide"
                 elif "レポート" in progress_message:
                     current_node = "answer"
-                elif "完了" in progress_message:
+
+                # レポート本文(最終)の判定: Markdown ヘッダーで始まる長文
+                is_report = progress_message.lstrip().startswith("# ")
+
+                # 完了判定
+                is_error = "エラー" in progress_message
+                is_final_step = progress_percentage >= 100 or is_report
+                if is_final_step:
                     current_node = "complete"
                     progress_percentage = 100
+                    if is_report:
+                        final_report = progress_message
 
-                is_complete = "完了" in progress_message or "エラー" in progress_message
+                is_complete = is_error or is_final_step
 
                 print(
                     f"📊 Progress: {progress_percentage}% - {current_node} - {progress_message[:50]}..."
                 )
-                if current_node == "answer":
-                    # progress_message がレポート本文かどうかを判定
-                    if progress_message.startswith("# "):
-                        # 最終レポート本文
-                        yield DeepResearchProgress(
-                            content=progress_message,
-                            research_id=research_id,
-                            session_id=session_id,
-                            is_complete=True,
-                            current_node="complete",
-                            progress_percentage=100,
-                        )
-                        print("✅ Final report sent")
-                        break
-                    else:
-                        # レポート生成中の進捗を通知（完了直前なので 99% とする）
-                        yield DeepResearchProgress(
-                            content="📝 レポートを生成中...",
-                            research_id=research_id,
-                            session_id=session_id,
-                            is_complete=False,
-                            current_node="answer",
-                            progress_percentage=min(progress_percentage, 99),
-                        )
-                else:
-                    yield DeepResearchProgress(
-                        content=progress_message,
-                        research_id=research_id,
-                        session_id=session_id,
-                        is_complete=is_complete,
-                        current_node=current_node,
-                        progress_percentage=progress_percentage,
-                    )
 
-            # 完了メッセージでループを中断しないよう break は行わない。
+                yield DeepResearchProgress(
+                    content=progress_message,
+                    research_id=research_id,
+                    session_id=session_id,
+                    is_complete=is_complete,
+                    current_node=current_node,
+                    progress_percentage=progress_percentage,
+                )
+
+                if is_complete:
+                    print("✅ Deep Research completed")
+
+                    # 最終レポートをアシスタントメッセージとして保存
+                    if final_report:
+                        try:
+                            async for db in get_db():
+                                # アシスタントメッセージを作成・保存
+                                assistant_message = Message(
+                                    session_id=str(session_uuid),
+                                    role=MessageRole.ASSISTANT,
+                                    content=final_report,
+                                    citations=None,
+                                    meta_data=json.dumps(
+                                        {
+                                            "research_id": research_id,
+                                            "type": "deep_research_report",
+                                        }
+                                    ),
+                                )
+                                db.add(assistant_message)
+                                await db.commit()
+                                await db.refresh(assistant_message)
+                                print("✅ Deep Research report saved to database")
+                                break
+                        except Exception as save_error:
+                            print(
+                                f"❌ Failed to save Deep Research report: {str(save_error)}"
+                            )
+
+                    break
 
         except Exception as e:
+            error_msg = f"Deep Research Error: {str(e)}"
+            print(f"❌ {error_msg}")
+            print(f"❌ Exception type: {type(e).__name__}")
+            import traceback
+
+            print(f"❌ Traceback: {traceback.format_exc()}")
+
             yield DeepResearchProgress(
-                content=f"Deep Research Error: {str(e)}",
-                research_id=research_id,
-                session_id=session_id,
+                content=error_msg,
+                research_id=research_id or "unknown",
+                session_id=session_id or "unknown",
                 is_complete=True,
                 current_node="error",
                 progress_percentage=0,

@@ -6,6 +6,7 @@ import {
   useGetSessionQuery,
   SessionInput,
   SessionType,
+  GetSessionsDocument,
 } from "@/generated/graphql";
 import { Reference } from "@apollo/client";
 
@@ -83,14 +84,37 @@ export function useChatSession({
       // キャッシュを自動更新
       update(cache, { data }) {
         if (data?.createSession) {
-          const newSession = data.createSession;
-          cache.modify({
-            fields: {
-              sessions(existingSessions = []) {
-                return [newSession, ...existingSessions];
+          const newSession = {
+            ...data.createSession,
+            messages: [], // 新しいセッションはメッセージが空
+          };
+          try {
+            // 既存のセッション一覧を取得
+            const existingData = cache.readQuery<{ sessions: SessionType[] }>({
+              query: GetSessionsDocument,
+              variables: { includeMessages },
+            });
+
+            if (existingData?.sessions) {
+              // 新しいセッションを先頭に追加
+              cache.writeQuery({
+                query: GetSessionsDocument,
+                variables: { includeMessages },
+                data: {
+                  sessions: [newSession, ...existingData.sessions],
+                },
+              });
+            }
+          } catch {
+            // キャッシュが存在しない場合は modify を使用
+            cache.modify({
+              fields: {
+                sessions(existingSessions = []) {
+                  return [newSession, ...existingSessions];
+                },
               },
-            },
-          });
+            });
+          }
         }
       },
     });
